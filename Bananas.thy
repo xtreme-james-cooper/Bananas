@@ -50,22 +50,20 @@ inductive_cases [elim]: "Case \<turnstile> t"
 inductive_cases [elim]: "Inj f \<turnstile> t"
 inductive_cases [elim]: "Outj f \<turnstile> t"
 
-fun is_value :: "expr \<Rightarrow> bool"
-and is_value_1 :: "expr \<Rightarrow> bool"
-and is_value_2 :: "expr \<Rightarrow> bool"
-and is_value_3 :: "expr \<Rightarrow> bool" where
-  "is_value (e\<^sub>1 \<star> e\<^sub>2) = (is_value_1 e\<^sub>1 \<and> is_value e\<^sub>2)"
-| "is_value _ = True"
-| "is_value_1 (e\<^sub>1 \<star> e\<^sub>2) = (is_value_2 e\<^sub>1 \<and> is_value e\<^sub>2)"
-| "is_value_1 Fst = False"
-| "is_value_1 Snd = False"
-| "is_value_1 (Outj _) = False"
-| "is_value_1 _ = True"
-| "is_value_2 (e\<^sub>1 \<star> e\<^sub>2) = (is_value_3 e\<^sub>1 \<and> is_value e\<^sub>2)"
-| "is_value_2 _ = True"
-| "is_value_3 (e\<^sub>1 \<star> e\<^sub>2) = (is_value_3 e\<^sub>1 \<and> is_value e\<^sub>2)"
-| "is_value_3 Case = False"
-| "is_value_3 _ = True"
+primrec is_value_until :: "expr \<Rightarrow> nat \<Rightarrow> bool" where
+  "is_value_until (e\<^sub>1 \<star> e\<^sub>2) n = (is_value_until e\<^sub>1 (Suc n) \<and> is_value_until e\<^sub>2 0)"
+| "is_value_until UnitV n = True"
+| "is_value_until Pair n = True"
+| "is_value_until Fst n = (n = 0)"
+| "is_value_until Snd n = (n = 0)"
+| "is_value_until Inl n = True"
+| "is_value_until Inr n = True"
+| "is_value_until Case n = (n < 3)"
+| "is_value_until (Inj f) n = True"
+| "is_value_until (Outj f) n = (n = 0)"
+
+definition is_value :: "expr \<Rightarrow> bool" where
+  "is_value e = is_value_until e 0"
 
 inductive evaluate :: "expr \<Rightarrow> expr \<Rightarrow> bool" (infix "\<leadsto>" 60) where
   ev_fun [simp]: "e\<^sub>1 \<leadsto> e\<^sub>1' \<Longrightarrow> e\<^sub>1 \<star> e\<^sub>2 \<leadsto> e\<^sub>1' \<star> e\<^sub>2"
@@ -75,6 +73,89 @@ inductive evaluate :: "expr \<Rightarrow> expr \<Rightarrow> bool" (infix "\<lea
 | ev_csl [simp]: "Case \<star> (Inl \<star> e) \<star> fl \<star> fr \<leadsto> fl \<star> e"
 | ev_csr [simp]: "Case \<star> (Inr \<star> e) \<star> fl \<star> fr \<leadsto> fr \<star> e"
 | ev_out [simp]: "Outj f \<star> (Inj f \<star> e) \<leadsto> e"
+
+(* safety *)
+
+abbreviation dne :: "expr \<Rightarrow> bool" where
+  "dne e \<equiv> (\<not> (\<exists>e'. e \<leadsto> e'))"
+
+primrec constructor_headed :: "expr \<Rightarrow> bool" where
+  "constructor_headed (e\<^sub>1 \<star> e\<^sub>2) = (constructor_headed e\<^sub>1 \<and> dne e\<^sub>2)"
+| "constructor_headed UnitV = True"
+| "constructor_headed Pair = True"
+| "constructor_headed Fst = False"
+| "constructor_headed Snd = False"
+| "constructor_headed Inl = True"
+| "constructor_headed Inr = True"
+| "constructor_headed Case = False"
+| "constructor_headed (Inj f) = True"
+| "constructor_headed (Outj f) = False"
+
+lemma [simp]: "dne Fst"
+  using evaluate.simps by blast
+
+lemma [simp]: "dne Snd"
+  using evaluate.simps by blast
+
+lemma [simp]: "dne (Outj f)"
+  using evaluate.simps by blast
+
+lemma [simp]: "dne Case"
+  using evaluate.simps by blast
+
+lemma [elim]: "Case \<star> e\<^sub>1 \<leadsto> e' \<Longrightarrow> dne e\<^sub>1 \<Longrightarrow> False"
+  proof (induction "Case \<star> e\<^sub>1" e' rule: evaluate.induct)
+  case ev_fun
+    thus ?case using evaluate.simps by blast
+  qed simp_all
+
+lemma [elim]: "Case \<star> e\<^sub>1 \<star> e\<^sub>2 \<leadsto> e' \<Longrightarrow> dne e\<^sub>1 \<Longrightarrow> dne e\<^sub>2 \<Longrightarrow> False"
+  by (induction "Case \<star> e\<^sub>1 \<star> e\<^sub>2" e' rule: evaluate.induct) auto
+
+lemma [elim]: "e\<^sub>1 \<star> e\<^sub>2 \<leadsto> e' \<Longrightarrow> constructor_headed e\<^sub>1 \<Longrightarrow> dne e\<^sub>1 \<Longrightarrow> dne e\<^sub>2 \<Longrightarrow> False"
+  by (induction "e\<^sub>1 \<star> e\<^sub>2" e' rule: evaluate.induct) auto
+
+lemma [simp]: "constructor_headed e \<Longrightarrow> dne e"
+  proof (induction e)
+  case UnitV
+    thus ?case using evaluate.simps by blast
+  next case Pair
+    thus ?case using evaluate.simps by blast
+  next case Inl
+    thus ?case using evaluate.simps by blast
+  next case Inr
+    thus ?case using evaluate.simps by blast
+  next case Inj
+    thus ?case using evaluate.simps by blast
+  qed auto
+
+lemma [simp]: "\<forall>e'\<in>set es. dne e' \<Longrightarrow> constructor_headed e \<Longrightarrow> dne (fold (\<lambda>e\<^sub>2 e\<^sub>1. e\<^sub>1 \<star> e\<^sub>2) es e)"
+  by (induction es arbitrary: e) simp_all
+
+lemma fold_value_dne: "is_value_until e (length es) \<Longrightarrow> \<forall>e' \<in> set es. dne e' \<Longrightarrow> 
+    dne (fold (\<lambda>e\<^sub>2 e\<^sub>1. e\<^sub>1 \<star> e\<^sub>2) es e)"
+  proof (induction e arbitrary: es)
+  case (Apply e\<^sub>1 e\<^sub>2)
+    hence "is_value_until e\<^sub>2 (length []) \<Longrightarrow> \<forall>e'\<in>set []. dne e' \<Longrightarrow> dne (fold (\<lambda>e\<^sub>2 e\<^sub>1. e\<^sub>1 \<star> e\<^sub>2) [] e\<^sub>2)" 
+      by (smt list.size(3))
+    with Apply have X: "dne e\<^sub>2" by simp
+    from Apply have "is_value_until e\<^sub>1 (length (e\<^sub>2 # es)) \<Longrightarrow> \<forall>e'\<in>set (e\<^sub>2 # es). dne e' \<Longrightarrow> 
+      dne (fold (\<lambda>e\<^sub>2 e\<^sub>1. e\<^sub>1 \<star> e\<^sub>2) (e\<^sub>2 # es) e\<^sub>1)" by (smt list.size(3))
+    with Apply X show ?case by simp
+  next case Case
+    thus ?case
+      proof (cases es)
+      case (Cons e es)
+        with Case show ?thesis by (cases es) auto
+      qed simp_all
+  qed simp_all
+
+theorem value_does_not_evaluate: "is_value e \<Longrightarrow> dne e"
+  proof -
+    assume "is_value e"
+    hence "is_value_until e (length [])" by (simp add: is_value_def)
+    thus "dne e" using fold_value_dne by fastforce
+  qed
 
 theorem preservation: "e \<leadsto> e' \<Longrightarrow> e \<turnstile> t \<Longrightarrow> e' \<turnstile> t"
   proof (induction e e' arbitrary: t rule: evaluate.induct)
@@ -88,24 +169,32 @@ theorem preservation: "e \<leadsto> e' \<Longrightarrow> e \<turnstile> t \<Long
     ultimately show ?case by auto
   qed fastforce+
 
-theorem values_terminal: "is_value e \<Longrightarrow> \<not> (\<exists>e'. e \<leadsto> e')"
-  apply (induction e)
-  defer
-  using evaluate.simps apply blast
-  using evaluate.simps apply blast
-  using evaluate.simps apply blast
-  using evaluate.simps apply blast
-  using evaluate.simps apply blast
-  using evaluate.simps apply blast
-  using evaluate.simps apply blast
-  using evaluate.simps apply blast
-  using evaluate.simps apply blast
-  by simp
-
 theorem progress: "e \<turnstile> t \<Longrightarrow> is_value e \<or> (\<exists>e'. e \<leadsto> e')"
   proof (induction e t rule: typecheck.induct)
   case (tc_app e\<^sub>1 t\<^sub>1 t\<^sub>2 e\<^sub>2)
-    thus ?case by simp
-  qed simp_all
+    thus ?case
+      proof (cases "is_value e\<^sub>1")
+      case True note T = True
+        thus ?thesis
+          proof (cases "is_value e\<^sub>2")
+          case True
+            from tc_app have "e\<^sub>1 \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2" by simp
+            from tc_app have "e\<^sub>2 \<turnstile> t\<^sub>1" by simp
+        
+        
+
+            have "(is_value_until e\<^sub>1 (Suc 0) \<and> is_value_until e\<^sub>2 0) \<or> (\<exists>a. e\<^sub>1 \<star> e\<^sub>2 \<leadsto> a)" by simp
+            thus ?thesis by (simp add: is_value_def)
+          next case False
+            with tc_app obtain e\<^sub>2' where "e\<^sub>2 \<leadsto> e\<^sub>2'" by blast
+            with True have "e\<^sub>1 \<star> e\<^sub>2 \<leadsto> e\<^sub>1 \<star> e\<^sub>2'" by simp
+            thus ?thesis by auto
+          qed
+      next case False
+        with tc_app obtain e\<^sub>1' where "e\<^sub>1 \<leadsto> e\<^sub>1'" by blast
+        hence "e\<^sub>1 \<star> e\<^sub>2 \<leadsto> e\<^sub>1' \<star> e\<^sub>2" by simp
+        thus ?thesis by auto
+      qed
+  qed (simp_all add: is_value_def)
  
 end
