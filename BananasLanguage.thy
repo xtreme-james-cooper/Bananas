@@ -1,4 +1,4 @@
-theory Bananas
+theory BananasLanguage
 imports Main
 begin
 
