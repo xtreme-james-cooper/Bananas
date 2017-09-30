@@ -26,7 +26,7 @@ datatype val =
 | InjV funct val 
 
 datatype expr = 
-  \<epsilon> | Comp expr expr (infix "\<cdot>" 70)
+  \<epsilon> | Comp expr expr (infixr "\<cdot>" 70)
 | \<pi>\<^sub>1 | \<pi>\<^sub>2 | Tuple expr expr (infix "\<triangle>" 80)
 | \<iota>\<^sub>l | \<iota>\<^sub>r | Case expr expr (infix "\<nabla>" 80)
 | Outj funct
