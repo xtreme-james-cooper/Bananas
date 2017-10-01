@@ -7,7 +7,7 @@ datatype type =
 | Prod type type (infixr "\<otimes>" 85)
 | Sum type type (infixr "\<oplus>" 80)
 | Func type type (infixr "\<hookrightarrow>" 70)
-| \<mu> funct
+| Fix funct ("\<mu>")
 and funct =
   Id
 | K type
@@ -15,12 +15,13 @@ and funct =
 | SumF funct funct (infixr "\<Oplus>" 80)
 
 datatype expr = 
-  Identity ("\<epsilon>") | Comp expr expr (infixr "\<cdot>" 65) | Const val ("\<kappa>")
+  Identity ("\<epsilon>") | Const val ("\<kappa>") | Comp expr expr (infixr "\<cdot>" 65)
 | Proj1 ("\<pi>\<^sub>1") | Proj2 ("\<pi>\<^sub>2") | Duplicate ("\<Theta>") | Pairwise expr expr (infix "\<parallel>" 80)
 | Injl ("\<iota>\<^sub>l") | Injr ("\<iota>\<^sub>r") | Strip ("\<Xi>") |  Case expr expr (infix "\<bar>" 80)
 | Distribute ("\<rhd>")
-| Apply | Arrow expr expr (infix "\<leftarrow>" 70)
+| Apply ("$") | Arrow expr expr (infix "\<leftarrow>" 70)
 | Outj funct
+| Cata expr
 and val = 
   UnitV
 | PairV val val 
@@ -50,7 +51,7 @@ inductive typecheck\<^sub>e :: "expr \<Rightarrow> type \<Rightarrow> type \<Rig
 | tc_str [simp]: "\<Xi> \<turnstile> t\<^sub>1 \<oplus> t\<^sub>1 \<rightarrow> t\<^sub>1"
 | tc_case [simp]: "f\<^sub>l \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>3 \<Longrightarrow> f\<^sub>r \<turnstile> t\<^sub>2 \<rightarrow> t\<^sub>4 \<Longrightarrow> f\<^sub>l \<bar> f\<^sub>r \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2 \<rightarrow> t\<^sub>3 \<oplus> t\<^sub>4"
 | tc_dst [simp]: "\<rhd> \<turnstile> (t\<^sub>1 \<oplus> t\<^sub>2) \<otimes> t\<^sub>3 \<rightarrow> t\<^sub>1 \<otimes> t\<^sub>3 \<oplus> t\<^sub>2 \<otimes> t\<^sub>3"
-| tc_app [simp]: "Apply \<turnstile> (t\<^sub>1 \<hookrightarrow> t\<^sub>2) \<otimes> t\<^sub>1 \<rightarrow> t\<^sub>2"
+| tc_app [simp]: "$ \<turnstile> (t\<^sub>1 \<hookrightarrow> t\<^sub>2) \<otimes> t\<^sub>1 \<rightarrow> t\<^sub>2"
 | tc_arr [simp]: "f \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> g \<turnstile> t\<^sub>3 \<rightarrow> t\<^sub>4 \<Longrightarrow> g \<leftarrow> f \<turnstile> t\<^sub>2 \<hookrightarrow> t\<^sub>3 \<rightarrow> t\<^sub>1 \<hookrightarrow> t\<^sub>4"
 | tc_outj [simp]: "Outj f \<turnstile> \<mu> f \<rightarrow> f \<star> \<mu> f"
 
@@ -73,7 +74,7 @@ inductive_cases [elim]: "\<iota>\<^sub>r \<turnstile> t \<rightarrow> t'"
 inductive_cases [elim]: "\<Xi> \<turnstile> t \<rightarrow> t'"
 inductive_cases [elim]: "f\<^sub>l \<bar> f\<^sub>r \<turnstile> t \<rightarrow> t'"
 inductive_cases [elim]: "\<rhd> \<turnstile> t \<rightarrow> t'"
-inductive_cases [elim]: "Apply \<turnstile> t \<rightarrow> t'"
+inductive_cases [elim]: "$ \<turnstile> t \<rightarrow> t'"
 inductive_cases [elim]: "g \<leftarrow> f \<turnstile> t \<rightarrow> t'"
 inductive_cases [elim]: "Outj f \<turnstile> t \<rightarrow> t'"
 
@@ -104,7 +105,7 @@ inductive evaluate :: "expr \<Rightarrow> val \<Rightarrow> expr \<Rightarrow> v
 | ev_csr [simp]: "f\<^sub>l \<bar> f\<^sub>r \<cdot> InrV v \<leadsto> (\<iota>\<^sub>r \<cdot> f\<^sub>r) \<cdot> v"
 | ev_dstl [simp]: "\<rhd> \<cdot> PairV (InlV v\<^sub>1) v\<^sub>2 \<leadsto> \<epsilon> \<cdot> InlV (PairV v\<^sub>1 v\<^sub>2)"
 | ev_dstr [simp]: "\<rhd> \<cdot> PairV (InrV v\<^sub>1) v\<^sub>2 \<leadsto> \<epsilon> \<cdot> InrV (PairV v\<^sub>1 v\<^sub>2)"
-| ev_app [simp]: "Apply \<cdot> PairV (FunV e) v \<leadsto> e \<cdot> v"
+| ev_app [simp]: "$ \<cdot> PairV (FunV e) v \<leadsto> e \<cdot> v"
 | ev_arr [simp]: "g \<leftarrow> f \<cdot> FunV e \<leadsto> \<epsilon> \<cdot> FunV (g \<cdot> e \<cdot> f)"
 | ev_out [simp]: "Outj f \<cdot> InjV f v \<leadsto> \<epsilon> \<cdot> v"
 
@@ -215,7 +216,7 @@ theorem progress: "e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrighta
       qed
   next case (tc_app t\<^sub>1 t\<^sub>2)
     then obtain e v' where V: "v = PairV (FunV e) v'" using canonical_prod canonical_arrow by blast
-    moreover hence "Apply \<cdot> v \<leadsto> e \<cdot> v'" by simp
+    moreover hence "$ \<cdot> v \<leadsto> e \<cdot> v'" by simp
     ultimately show ?case by fastforce
   next case (tc_arr f t\<^sub>1 t\<^sub>2 g t\<^sub>3 t\<^sub>4)
     then obtain e where "v = FunV e" using canonical_arrow by blast
