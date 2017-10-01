@@ -194,4 +194,7 @@ lemma [simp]: "e\<^sub>1 \<nabla> e\<^sub>2 \<cdot> \<iota>\<^sub>l \<simeq> e\<
 lemma [simp]: "e\<^sub>1 \<nabla> e\<^sub>2 \<cdot> \<iota>\<^sub>r \<simeq> e\<^sub>2"
   by (auto simp add: expression_equality_def)
 
+lemma [simp]: "g \<cdot> f \<simeq> \<epsilon> \<Longrightarrow> g \<leftarrow> f \<simeq> \<epsilon>"
+  by (auto simp add: expression_equality_def)
+
 end

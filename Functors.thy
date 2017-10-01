@@ -84,4 +84,7 @@ lemma [simp]: "(\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1 \<cdot> e\<^sub>1\<^su
 theorem sum_bifunctor: "bifunctor (op \<oplus>) (\<lambda>f g. (\<iota>\<^sub>l \<cdot> f) \<nabla> (\<iota>\<^sub>r \<cdot> g))"
   by (simp add: bifunctor_def)
 
+theorem arrow_bifunctor: "bifunctor (op \<hookrightarrow>) (\<lambda>f g. g \<leftarrow> f)"
+  by (simp add: bifunctor_def)
+
 end
