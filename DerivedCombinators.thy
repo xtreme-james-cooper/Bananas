@@ -25,11 +25,11 @@ definition SuccV :: "val \<Rightarrow> val" where
 definition List :: "type \<Rightarrow> type" where
   "List t = \<mu> (K \<one> \<Oplus> K t \<Otimes> Id)"
 
-definition NilV :: "type \<Rightarrow> val" where
-  "NilV t = InjV (K \<one> \<Oplus> K t \<Otimes> Id) (InlV UnitV)"
+definition NilV :: "type \<Rightarrow> val" ("NilV\<^bsub>_\<^esub>") where
+  "NilV\<^bsub>t\<^esub> = InjV (K \<one> \<Oplus> K t \<Otimes> Id) (InlV UnitV)"
 
-definition ConsV :: "type \<Rightarrow> val \<Rightarrow> val \<Rightarrow> val" where
-  "ConsV t v\<^sub>1 v\<^sub>2 = InjV (K \<one> \<Oplus> K t \<Otimes> Id) (InrV (PairV v\<^sub>1 v\<^sub>2))"
+definition ConsV :: "type \<Rightarrow> val \<Rightarrow> val \<Rightarrow> val" ("ConsV\<^bsub>_\<^esub>") where
+  "ConsV\<^bsub>t\<^esub> v\<^sub>1 v\<^sub>2 = InjV (K \<one> \<Oplus> K t \<Otimes> Id) (InrV (PairV v\<^sub>1 v\<^sub>2))"
 
 lemma [simp]: "TrueV \<turnstile> Bool"
   by (simp add: TrueV_def Bool_def)
@@ -43,10 +43,10 @@ lemma [simp]: "ZeroV \<turnstile> Nat"
 lemma [simp]: "n \<turnstile> Nat \<Longrightarrow> SuccV n \<turnstile> Nat"
   by (simp add: SuccV_def Nat_def)
 
-lemma [simp]: "NilV t \<turnstile> List t"
+lemma [simp]: "NilV\<^bsub>t\<^esub> \<turnstile> List t"
   by (simp add: NilV_def List_def)
 
-lemma [simp]: "v\<^sub>1 \<turnstile> t \<Longrightarrow> v\<^sub>2 \<turnstile> List t \<Longrightarrow> ConsV t v\<^sub>1 v\<^sub>2 \<turnstile> List t"
+lemma [simp]: "v\<^sub>1 \<turnstile> t \<Longrightarrow> v\<^sub>2 \<turnstile> List t \<Longrightarrow> ConsV\<^bsub>t\<^esub> v\<^sub>1 v\<^sub>2 \<turnstile> List t"
   by (simp add: ConsV_def List_def)
 
 (* derived combinators *)
@@ -57,8 +57,8 @@ definition tuple_pair :: "expr \<Rightarrow> expr \<Rightarrow> expr" (infix "\<
 definition case_strip :: "expr \<Rightarrow> expr \<Rightarrow> expr" (infix "\<nabla>" 80) where
   "e\<^sub>l \<nabla> e\<^sub>r = \<Xi> \<cdot> e\<^sub>l \<bar> e\<^sub>r"
 
-definition predicate :: "expr \<Rightarrow> expr" ("?") where
-  "? p = \<pi>\<^sub>2 \<bar> \<pi>\<^sub>2 \<cdot> \<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta>"
+definition predicate :: "expr \<Rightarrow> expr" ("_?") where
+  "p? = \<pi>\<^sub>2 \<bar> \<pi>\<^sub>2 \<cdot> \<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta>"
 
 definition swap :: expr ("\<bowtie>") where
   "\<bowtie> = \<pi>\<^sub>2 \<triangle> \<pi>\<^sub>1"
@@ -83,7 +83,7 @@ lemma tc_cse_str [simp]: "f\<^sub>l \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub
     ultimately show "\<Xi> \<cdot> f\<^sub>l \<bar> f\<^sub>r \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2 \<rightarrow> t\<^sub>3" by (metis tc_comp)
   qed
 
-lemma tc_pred [simp]: "p \<turnstile> t \<rightarrow> Bool \<Longrightarrow> ? p \<turnstile> t \<rightarrow> t \<oplus> t"
+lemma tc_pred [simp]: "p \<turnstile> t \<rightarrow> Bool \<Longrightarrow> p? \<turnstile> t \<rightarrow> t \<oplus> t"
   proof (unfold predicate_def)
     assume "p \<turnstile> t \<rightarrow> Bool"
     hence "p \<parallel> \<epsilon> \<turnstile> t \<otimes> t \<rightarrow> Bool \<otimes> t" by simp
@@ -127,7 +127,7 @@ lemma ev_cse_str_r [simp]: "f\<^sub>r \<cdot> v \<Down> v' \<Longrightarrow> f\<
     thus "(\<Xi> \<cdot> f\<^sub>l \<bar> f\<^sub>r) \<cdot> InrV v \<Down> v'" by fastforce
   qed
 
-lemma ev_pred_t [simp]: "p \<cdot> v \<Down> TrueV \<Longrightarrow> ? p \<cdot> v \<Down> InlV v"
+lemma ev_pred_t [simp]: "p \<cdot> v \<Down> TrueV \<Longrightarrow> p? \<cdot> v \<Down> InlV v"
   proof (unfold predicate_def)
     have "\<Theta> \<cdot> v \<Down> PairV v v" by simp
     moreover assume "p \<cdot> v \<Down> TrueV"
@@ -139,7 +139,7 @@ lemma ev_pred_t [simp]: "p \<cdot> v \<Down> TrueV \<Longrightarrow> ? p \<cdot>
     ultimately show "(\<pi>\<^sub>2 \<bar> \<pi>\<^sub>2 \<cdot> \<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta>) \<cdot> v \<Down> InlV v" by fastforce
   qed
 
-lemma ev_pred_f [simp]: "p \<cdot> v \<Down> FalseV \<Longrightarrow> ? p \<cdot> v \<Down> InrV v"
+lemma ev_pred_f [simp]: "p \<cdot> v \<Down> FalseV \<Longrightarrow> p? \<cdot> v \<Down> InrV v"
   proof (unfold predicate_def)
     have "\<Theta> \<cdot> v \<Down> PairV v v" by simp
     moreover assume "p \<cdot> v \<Down> FalseV"
