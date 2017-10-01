@@ -42,7 +42,7 @@ inductive typecheck\<^sub>e :: "expr \<Rightarrow> type \<Rightarrow> type \<Rig
 | tc_fst [simp]: "\<pi>\<^sub>1 \<turnstile> t\<^sub>1 \<otimes> t\<^sub>2 \<rightarrow> t\<^sub>1"
 | tc_snd [simp]: "\<pi>\<^sub>2 \<turnstile> t\<^sub>1 \<otimes> t\<^sub>2 \<rightarrow> t\<^sub>2"
 | tc_tup [simp]: "\<Delta> \<turnstile> t \<rightarrow> t \<otimes> t"
-| tc_pair [simp]: "f\<^sub>1 \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> f\<^sub>2 \<turnstile> t\<^sub>3 \<rightarrow> t\<^sub>4 \<Longrightarrow> f\<^sub>1 \<parallel> f\<^sub>2 \<turnstile> t\<^sub>1 \<otimes> t\<^sub>2 \<rightarrow> t\<^sub>3 \<otimes> t\<^sub>4"
+| tc_pair [simp]: "f\<^sub>1 \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> f\<^sub>2 \<turnstile> t\<^sub>3 \<rightarrow> t\<^sub>4 \<Longrightarrow> f\<^sub>1 \<parallel> f\<^sub>2 \<turnstile> t\<^sub>1 \<otimes> t\<^sub>3 \<rightarrow> t\<^sub>2 \<otimes> t\<^sub>4"
 | tc_inl [simp]: "\<iota>\<^sub>l \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>1 \<oplus> t\<^sub>2"
 | tc_inr [simp]: "\<iota>\<^sub>r \<turnstile> t\<^sub>2 \<rightarrow> t\<^sub>1 \<oplus> t\<^sub>2"
 | tc_case [simp]: "f\<^sub>l \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>3 \<Longrightarrow> f\<^sub>r \<turnstile> t\<^sub>2 \<rightarrow> t\<^sub>3 \<Longrightarrow> f\<^sub>l \<nabla> f\<^sub>r \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2 \<rightarrow> t\<^sub>3"
@@ -95,7 +95,7 @@ inductive evaluate :: "expr \<Rightarrow> val \<Rightarrow> expr \<Rightarrow> v
 | ev_csr [simp]: "f\<^sub>l \<nabla> f\<^sub>r \<cdot> InrV v \<leadsto> f\<^sub>r \<cdot> v"
 | ev_app [simp]: "Apply \<cdot> PairV (FunV e) v \<leadsto> e \<cdot> v"
 | ev_arr [simp]: "g \<leftarrow> f \<cdot> FunV e \<leadsto> \<epsilon> \<cdot> FunV (g \<cdot> e \<cdot> f)"
-| ev_out [simp]: "Outj f \<cdot> Inj f v \<leadsto> \<epsilon> \<cdot> v"
+| ev_out [simp]: "Outj f \<cdot> InjV f v \<leadsto> \<epsilon> \<cdot> v"
 
 (* safety *)
 
@@ -114,82 +114,113 @@ lemma canonical_arrow: "v \<turnstile> t\<^sub>1 \<hookrightarrow> t\<^sub>2 \<L
 lemma canonical_mu: "v \<turnstile> \<mu> f \<Longrightarrow> \<exists>v'. v' \<turnstile> f \<star> \<mu> f \<and> v = InjV f v'"
   by (induction v "\<mu> f" rule: typecheck\<^sub>v.induct) simp_all
 
-theorem progress: "e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> v \<turnstile> t\<^sub>1 \<Longrightarrow> e \<noteq> \<epsilon> \<Longrightarrow> \<exists>e' v' t\<^sub>3. (e' \<turnstile> t\<^sub>3 \<rightarrow> t\<^sub>2) \<and> (v' \<turnstile> t\<^sub>3) \<and> e \<cdot> v \<leadsto> e' \<cdot> v'"
+theorem progress: "e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> v \<turnstile> t\<^sub>1 \<Longrightarrow> e \<noteq> \<epsilon> \<Longrightarrow> \<exists>e' v'. e \<cdot> v \<leadsto> e' \<cdot> v'"
   proof (induction e t\<^sub>1 t\<^sub>2 arbitrary: v rule: typecheck\<^sub>e.induct)
   case tc_id
     thus ?case by simp
   next case (tc_comp f t\<^sub>2 t\<^sub>3 g t\<^sub>1)
     thus ?case
       proof (cases "g = \<epsilon>")
-      case False
-        with tc_comp obtain g' v' t\<^sub>4 where "(g' \<turnstile> t\<^sub>4 \<rightarrow> t\<^sub>2) \<and> (v' \<turnstile> t\<^sub>4) \<and> g \<cdot> v \<leadsto> g' \<cdot> v'" by blast
-        with tc_comp have "(f \<cdot> g' \<turnstile> t\<^sub>4 \<rightarrow> t\<^sub>3) \<and> (v' \<turnstile> t\<^sub>4) \<and> (f \<cdot> g) \<cdot> v \<leadsto> (f \<cdot> g') \<cdot> v'" by simp
+      case True
+        hence "(f \<cdot> g) \<cdot> v \<leadsto> f \<cdot> v" by simp
         thus ?thesis by fastforce
-      qed fastforce+
+      next case False
+        with tc_comp obtain g' v' where "g \<cdot> v \<leadsto> g' \<cdot> v'" by blast
+        with tc_comp have "(f \<cdot> g) \<cdot> v \<leadsto> (f \<cdot> g') \<cdot> v'" by simp
+        thus ?thesis by fastforce
+      qed
   next case (tc_fst t\<^sub>1 t\<^sub>2)
-    then obtain v\<^sub>1 v\<^sub>2 where "v\<^sub>1 \<turnstile> t\<^sub>1 \<and> v\<^sub>2 \<turnstile> t\<^sub>2 \<and> v = PairV v\<^sub>1 v\<^sub>2" using canonical_prod by blast
-    hence "(\<epsilon> \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>1) \<and> (v\<^sub>1 \<turnstile> t\<^sub>1) \<and> \<pi>\<^sub>1 \<cdot> v \<leadsto> \<epsilon> \<cdot> v\<^sub>1" by simp
+    then obtain v\<^sub>1 v\<^sub>2 where "v = PairV v\<^sub>1 v\<^sub>2" using canonical_prod by blast
+    hence "\<pi>\<^sub>1 \<cdot> v \<leadsto> \<epsilon> \<cdot> v\<^sub>1" by simp
     thus ?case by fastforce
   next case (tc_snd t\<^sub>1 t\<^sub>2)
-    then obtain v\<^sub>1 v\<^sub>2 where "v\<^sub>1 \<turnstile> t\<^sub>1 \<and> v\<^sub>2 \<turnstile> t\<^sub>2 \<and> v = PairV v\<^sub>1 v\<^sub>2" using canonical_prod by blast
-    hence "(\<epsilon> \<turnstile> t\<^sub>2 \<rightarrow> t\<^sub>2) \<and> (v\<^sub>2 \<turnstile> t\<^sub>2) \<and> \<pi>\<^sub>2 \<cdot> v \<leadsto> \<epsilon> \<cdot> v\<^sub>2" by simp
+    then obtain v\<^sub>1 v\<^sub>2 where "v = PairV v\<^sub>1 v\<^sub>2" using canonical_prod by blast
+    hence "\<pi>\<^sub>2 \<cdot> v \<leadsto> \<epsilon> \<cdot> v\<^sub>2" by simp
     thus ?case by fastforce
   next case (tc_tup t)
-    hence "(\<epsilon> \<turnstile> t \<otimes> t \<rightarrow> t \<otimes> t) \<and> (PairV v v \<turnstile> t \<otimes> t) \<and> \<Delta> \<cdot> v \<leadsto> \<epsilon> \<cdot> PairV v v" by simp
+    hence "\<Delta> \<cdot> v \<leadsto> \<epsilon> \<cdot> PairV v v" by simp
     thus ?case by fastforce
   next case (tc_pair f\<^sub>1 t\<^sub>1 t\<^sub>2 f\<^sub>2 t\<^sub>3 t\<^sub>4)
-    from tc_pair have "f\<^sub>1 \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2" by simp
-    from tc_pair have "f\<^sub>2 \<turnstile> t\<^sub>3 \<rightarrow> t\<^sub>4" by simp
-    from tc_pair have "vv \<turnstile> t\<^sub>1 \<Longrightarrow> f\<^sub>1 \<noteq> \<epsilon> \<Longrightarrow> \<exists>e' v' t\<^sub>3. e' \<turnstile> t\<^sub>3 \<rightarrow> t\<^sub>2 \<and> v' \<turnstile> t\<^sub>3 \<and> f\<^sub>1 \<cdot> vv \<leadsto> e' \<cdot> v'" by simp
-    from tc_pair have "vv \<turnstile> t\<^sub>3 \<Longrightarrow> f\<^sub>2 \<noteq> \<epsilon> \<Longrightarrow> \<exists>e' v' t\<^sub>3'. e' \<turnstile> t\<^sub>3' \<rightarrow> t\<^sub>4 \<and> v' \<turnstile> t\<^sub>3' \<and> f\<^sub>2 \<cdot> vv \<leadsto> e' \<cdot> v'" by simp
-    from tc_pair have "v \<turnstile> t\<^sub>1 \<otimes> t\<^sub>2" by simp
-
-
-    have "e' \<turnstile> t\<^sub>3' \<rightarrow> t\<^sub>3 \<otimes> t\<^sub>4 \<and> v' \<turnstile> t\<^sub>3' \<and> f\<^sub>1 \<parallel> f\<^sub>2 \<cdot> v \<leadsto> e' \<cdot> v'" by simp
-    thus ?case by fastforce
+    then obtain v\<^sub>1 v\<^sub>2 where V: "v\<^sub>1 \<turnstile> t\<^sub>1 \<and> v\<^sub>2 \<turnstile> t\<^sub>3 \<and> v = PairV v\<^sub>1 v\<^sub>2" using canonical_prod by blast
+    thus ?case
+      proof (cases "f\<^sub>1 = \<epsilon>")
+      case True note T = True
+        thus ?thesis
+          proof (cases "f\<^sub>2 = \<epsilon>")
+          case True
+            have "\<epsilon> \<parallel> \<epsilon> \<cdot> PairV v\<^sub>1 v\<^sub>2 \<leadsto> \<epsilon> \<cdot> PairV v\<^sub>1 v\<^sub>2" by simp
+            with T True V show ?thesis by fastforce
+          next case False
+            with tc_pair V obtain f\<^sub>2' v\<^sub>2' where "f\<^sub>2 \<cdot> v\<^sub>2 \<leadsto> f\<^sub>2' \<cdot> v\<^sub>2'" by blast
+            hence "\<epsilon> \<parallel> f\<^sub>2 \<cdot> PairV v\<^sub>1 v\<^sub>2 \<leadsto> \<epsilon> \<parallel> f\<^sub>2' \<cdot> PairV v\<^sub>1 v\<^sub>2'" by simp
+            with True V show ?thesis by fastforce
+          qed
+      next case False
+        with tc_pair V obtain f\<^sub>1' v\<^sub>1' where "f\<^sub>1 \<cdot> v\<^sub>1 \<leadsto> f\<^sub>1' \<cdot> v\<^sub>1'" by blast    
+        hence "f\<^sub>1 \<parallel> f\<^sub>2 \<cdot> PairV v\<^sub>1 v\<^sub>2 \<leadsto> f\<^sub>1' \<parallel> f\<^sub>2 \<cdot> PairV v\<^sub>1' v\<^sub>2" by simp
+        with V show ?thesis by fastforce
+      qed
   next case (tc_inl t\<^sub>1 t\<^sub>2)
-    hence "InlV v \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2 \<and> v ~ \<iota>\<^sub>l \<leadsto> InlV v" by simp
+    hence "\<iota>\<^sub>l \<cdot> v \<leadsto> \<epsilon> \<cdot> InlV v" by simp
     thus ?case by fastforce
   next case (tc_inr t\<^sub>2 t\<^sub>1)
-    hence "InrV v \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2 \<and> v ~ \<iota>\<^sub>r \<leadsto> InrV v" by simp
+    hence "\<iota>\<^sub>r \<cdot> v \<leadsto> \<epsilon> \<cdot> InrV v" by simp
     thus ?case by fastforce
   next case (tc_case f\<^sub>l t\<^sub>1 t\<^sub>3 f\<^sub>r t\<^sub>2)
-    then obtain v' where V: "(v' \<turnstile> t\<^sub>1 \<and> v = InlV v') \<or> (v' \<turnstile> t\<^sub>2 \<and> v = InrV v')" 
-      using canonical_sum by blast
+    then obtain v' where V: "v = InlV v' \<or> v = InrV v'" using canonical_sum by blast
     thus ?case
-      proof (cases "v' \<turnstile> t\<^sub>1 \<and> v = InlV v'")
+      proof (cases "v = InlV v'")
       case True
-        with tc_case obtain v\<^sub>1 where "v\<^sub>1 \<turnstile> t\<^sub>3 \<and> v' ~ f\<^sub>l \<leadsto> v\<^sub>1" by blast 
-        moreover with True have "v ~ f\<^sub>l \<nabla> f\<^sub>r \<leadsto> v\<^sub>1" by simp
-        ultimately show ?thesis by fastforce
+        hence "f\<^sub>l \<nabla> f\<^sub>r \<cdot> v \<leadsto> f\<^sub>l \<cdot> v'" by simp
+        thus ?thesis by fastforce
       next case False
-        from tc_case False V obtain v\<^sub>2 where "v\<^sub>2 \<turnstile> t\<^sub>3 \<and> v' ~ f\<^sub>r \<leadsto> v\<^sub>2" by blast 
-        moreover with False V have "v ~ f\<^sub>l \<nabla> f\<^sub>r \<leadsto> v\<^sub>2" by auto
-        ultimately show ?thesis by fastforce
+        with V have "f\<^sub>l \<nabla> f\<^sub>r \<cdot> v \<leadsto> f\<^sub>r \<cdot> v'" by simp
+        thus ?thesis by fastforce
       qed
   next case (tc_app t\<^sub>1 t\<^sub>2)
-    then obtain e v' where V: "(e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2) \<and> v' \<turnstile> t\<^sub>1 \<and> v = PairV (FunV e) v'" 
-      using canonical_prod canonical_arrow by blast
-
-
-    have X: "v'' \<turnstile> t\<^sub>2" by simp
-
-
-    have "v' ~ e \<leadsto> v''" by simp
-    hence "PairV (FunV e) v' ~ Apply \<leadsto> v''" by simp
-    with V X show ?case by fastforce
+    then obtain e v' where V: "v = PairV (FunV e) v'" using canonical_prod canonical_arrow by blast
+    moreover hence "Apply \<cdot> v \<leadsto> e \<cdot> v'" by simp
+    ultimately show ?case by fastforce
   next case (tc_arr f t\<^sub>1 t\<^sub>2 g t\<^sub>3 t\<^sub>4)
-    then obtain e where "(e \<turnstile> t\<^sub>2 \<rightarrow> t\<^sub>3) \<and> v = FunV e" using canonical_arrow by blast
-    moreover with tc_arr have "FunV (g \<cdot> e \<cdot> f) \<turnstile> t\<^sub>1 \<hookrightarrow> t\<^sub>4" by fastforce
-    moreover have "FunV e ~ g \<leftarrow> f \<leadsto> FunV (g \<cdot> e \<cdot> f)" by simp
+    then obtain e where "v = FunV e" using canonical_arrow by blast
+    moreover hence "g \<leftarrow> f \<cdot> FunV e \<leadsto> \<epsilon> \<cdot> FunV (g \<cdot> e \<cdot> f)" by simp
     ultimately show ?case by fastforce
   next case (tc_outj f)
-    then obtain v' where "v' \<turnstile> f \<star> \<mu> f \<and> v = InjV f v'" using canonical_mu by blast
-    moreover hence "v ~ Outj f \<leadsto> v'" by simp
+    then obtain v' where "v = InjV f v'" using canonical_mu by blast
+    moreover hence "Outj f \<cdot> v \<leadsto> \<epsilon> \<cdot> v'" by simp
     ultimately show ?case by fastforce
   qed
 
-theorem preservation: "e \<cdot> v \<leadsto> e' \<cdot> v' \<Longrightarrow> e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> v \<turnstile> t\<^sub>1 \<Longrightarrow> \<exists>t\<^sub>3. (e' \<turnstile> t\<^sub>3 \<rightarrow> t\<^sub>2) \<and> (v' \<turnstile> t\<^sub>3)"
-  by (induction e v e' v' arbitrary: t\<^sub>1 t\<^sub>2 rule: evaluate.induct) fastforce+
+theorem preservation: "e \<cdot> v \<leadsto> e' \<cdot> v' \<Longrightarrow> e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> v \<turnstile> t\<^sub>1 \<Longrightarrow> 
+    \<exists>t\<^sub>3. (e' \<turnstile> t\<^sub>3 \<rightarrow> t\<^sub>2) \<and> (v' \<turnstile> t\<^sub>3)"
+  proof (induction e v e' v' arbitrary: t\<^sub>1 t\<^sub>2 rule: evaluate.induct)
+  case (ev_pair1 f\<^sub>1 v\<^sub>1 f\<^sub>1' v\<^sub>1' f\<^sub>2 v\<^sub>2)
+    then obtain t\<^sub>1\<^sub>1 t\<^sub>1\<^sub>2 t\<^sub>2\<^sub>1 t\<^sub>2\<^sub>2 t\<^sub>1\<^sub>1' where T: "v\<^sub>1 \<turnstile> t\<^sub>1\<^sub>1 \<and> v\<^sub>2 \<turnstile> t\<^sub>1\<^sub>2 \<and> (f\<^sub>1 \<turnstile> t\<^sub>1\<^sub>1 \<rightarrow> t\<^sub>2\<^sub>1) \<and> (f\<^sub>2 \<turnstile> t\<^sub>1\<^sub>2 \<rightarrow> t\<^sub>2\<^sub>2) \<and> 
+      t\<^sub>1 = t\<^sub>1\<^sub>1 \<otimes> t\<^sub>1\<^sub>2 \<and> t\<^sub>2 = t\<^sub>2\<^sub>1 \<otimes> t\<^sub>2\<^sub>2 \<and> (f\<^sub>1' \<turnstile> t\<^sub>1\<^sub>1' \<rightarrow> t\<^sub>2\<^sub>1) \<and> v\<^sub>1' \<turnstile> t\<^sub>1\<^sub>1'" by fastforce
+    hence "(f\<^sub>1' \<parallel> f\<^sub>2 \<turnstile> t\<^sub>1\<^sub>1' \<otimes> t\<^sub>1\<^sub>2 \<rightarrow> t\<^sub>2) \<and> PairV v\<^sub>1' v\<^sub>2 \<turnstile> t\<^sub>1\<^sub>1' \<otimes> t\<^sub>1\<^sub>2" by simp
+    thus ?case by fastforce
+  next case (ev_pair2 f\<^sub>2 v\<^sub>2 f\<^sub>2' v\<^sub>2' v\<^sub>1)
+    then obtain t\<^sub>1\<^sub>1 t\<^sub>1\<^sub>2 t\<^sub>2\<^sub>2 t\<^sub>1\<^sub>2' where T: "v\<^sub>1 \<turnstile> t\<^sub>1\<^sub>1 \<and> v\<^sub>2 \<turnstile> t\<^sub>1\<^sub>2 \<and> (f\<^sub>2 \<turnstile> t\<^sub>1\<^sub>2 \<rightarrow> t\<^sub>2\<^sub>2) \<and> 
+      t\<^sub>1 = t\<^sub>1\<^sub>1 \<otimes> t\<^sub>1\<^sub>2 \<and> t\<^sub>2 = t\<^sub>1\<^sub>1 \<otimes> t\<^sub>2\<^sub>2 \<and> (f\<^sub>2' \<turnstile> t\<^sub>1\<^sub>2' \<rightarrow> t\<^sub>2\<^sub>2) \<and> v\<^sub>2' \<turnstile> t\<^sub>1\<^sub>2'" by fastforce
+    hence "(\<epsilon> \<parallel> f\<^sub>2' \<turnstile> t\<^sub>1\<^sub>1 \<otimes> t\<^sub>1\<^sub>2' \<rightarrow> t\<^sub>2) \<and> PairV v\<^sub>1 v\<^sub>2' \<turnstile> t\<^sub>1\<^sub>1 \<otimes> t\<^sub>1\<^sub>2'" by simp
+    thus ?case by fastforce
+  next case (ev_tup v)
+    hence "t\<^sub>2 = t\<^sub>1 \<otimes> t\<^sub>1" by fastforce
+    moreover from ev_tup have "(\<epsilon> \<turnstile> t\<^sub>1 \<otimes> t\<^sub>1 \<rightarrow> t\<^sub>1 \<otimes> t\<^sub>1) \<and> PairV v v \<turnstile> t\<^sub>1 \<otimes> t\<^sub>1" by simp
+    ultimately show ?case by fastforce
+  next case (ev_inl v)
+    moreover then obtain t\<^sub>3 where "t\<^sub>2 = t\<^sub>1 \<oplus> t\<^sub>3" by fastforce
+    ultimately have "(\<epsilon> \<turnstile> t\<^sub>1 \<oplus> t\<^sub>3 \<rightarrow> t\<^sub>2) \<and> InlV v \<turnstile> t\<^sub>1 \<oplus> t\<^sub>3" by simp
+    thus ?case by fastforce
+  next case (ev_inr v)
+    moreover then obtain t\<^sub>3 where "t\<^sub>2 = t\<^sub>3 \<oplus> t\<^sub>1" by fastforce
+    ultimately have "(\<epsilon> \<turnstile> t\<^sub>3 \<oplus> t\<^sub>1 \<rightarrow> t\<^sub>2) \<and> InrV v \<turnstile> t\<^sub>3 \<oplus> t\<^sub>1" by simp
+    thus ?case by fastforce
+  next case (ev_arr g f e)
+    then obtain t\<^sub>1\<^sub>1 t\<^sub>1\<^sub>2 t\<^sub>2\<^sub>1 t\<^sub>2\<^sub>2 where "(f \<turnstile> t\<^sub>2\<^sub>1 \<rightarrow> t\<^sub>1\<^sub>1) \<and> (g \<turnstile> t\<^sub>1\<^sub>2 \<rightarrow> t\<^sub>2\<^sub>2) \<and> (e \<turnstile> t\<^sub>1\<^sub>1 \<rightarrow> t\<^sub>1\<^sub>2) \<and>
+      t\<^sub>1 = t\<^sub>1\<^sub>1 \<hookrightarrow> t\<^sub>1\<^sub>2 \<and> t\<^sub>2 = t\<^sub>2\<^sub>1 \<hookrightarrow> t\<^sub>2\<^sub>2" by fastforce
+    hence "(\<epsilon> \<turnstile> t\<^sub>2\<^sub>1 \<hookrightarrow> t\<^sub>2\<^sub>2 \<rightarrow> t\<^sub>2) \<and> FunV (g \<cdot> e \<cdot> f) \<turnstile> t\<^sub>2\<^sub>1 \<hookrightarrow> t\<^sub>2\<^sub>2" by fastforce
+    thus ?case by fastforce
+  qed force+
  
 end
