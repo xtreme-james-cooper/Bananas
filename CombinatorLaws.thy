@@ -24,6 +24,24 @@ lemma [elim]: "PairV v\<^sub>1 v\<^sub>2 ~ \<pi>\<^sub>1 \<leadsto> v \<Longrigh
 lemma [elim]: "PairV v\<^sub>1 v\<^sub>2 ~ \<pi>\<^sub>2 \<leadsto> v \<Longrightarrow> v\<^sub>2 = v"
   by (induction "PairV v\<^sub>1 v\<^sub>2" \<pi>\<^sub>2 v rule: evaluate.induct) simp_all
 
+lemma [elim]: "v ~ \<iota>\<^sub>l \<leadsto> v' \<Longrightarrow> v' = InlV v"
+  by (induction v \<iota>\<^sub>l v' rule: evaluate.induct) simp_all
+
+lemma [elim]: "v ~ \<iota>\<^sub>l \<leadsto> InlV v' \<Longrightarrow> v' = v"
+  by (induction v \<iota>\<^sub>l "InlV v'" rule: evaluate.induct) simp_all
+
+lemma [elim]: "v ~ \<iota>\<^sub>l \<leadsto> InrV v' \<Longrightarrow> False"
+  by (induction v \<iota>\<^sub>l "InrV v'" rule: evaluate.induct)
+
+lemma [elim]: "v ~ \<iota>\<^sub>r \<leadsto> v' \<Longrightarrow> v' = InrV v"
+  by (induction v \<iota>\<^sub>r v' rule: evaluate.induct) simp_all
+
+lemma [elim]: "v ~ \<iota>\<^sub>r \<leadsto> InrV v' \<Longrightarrow> v' = v"
+  by (induction v \<iota>\<^sub>r "InrV v'" rule: evaluate.induct) simp_all
+
+lemma [elim]: "v ~ \<iota>\<^sub>r \<leadsto> InlV v' \<Longrightarrow> False"
+  by (induction v \<iota>\<^sub>r "InlV v'" rule: evaluate.induct)
+
 lemma [elim]: "v ~ \<epsilon> \<cdot> e \<leadsto> v' \<Longrightarrow> v ~ e \<leadsto> v'"
   proof (induction v "\<epsilon> \<cdot> e" v' rule: evaluate.induct)
   case (ev_comp v v' v'')
@@ -79,6 +97,50 @@ lemma [elim]: "v ~ \<pi>\<^sub>2 \<cdot> e\<^sub>1 \<triangle> e\<^sub>2 \<leads
       qed
   qed
 
+lemma [simp]: "v ~ \<iota>\<^sub>l \<nabla> \<iota>\<^sub>r \<leadsto> v' \<Longrightarrow> v ~ \<epsilon> \<leadsto> v'"
+  proof (induction v "\<iota>\<^sub>l \<nabla> \<iota>\<^sub>r" v' rule: evaluate.induct)
+  case (ev_csl v v')
+    hence "v' = InlV v" by auto
+    thus ?case by simp
+  next case (ev_csr v v')
+    hence "v' = InrV v" by auto
+    thus ?case by simp
+  qed
+
+lemma [simp]: "v ~ e\<^sub>3 \<cdot> e\<^sub>1 \<nabla> e\<^sub>2 \<leadsto> v' \<Longrightarrow> v ~ (e\<^sub>3 \<cdot> e\<^sub>1) \<nabla> (e\<^sub>3 \<cdot> e\<^sub>2) \<leadsto> v'"
+  proof (induction v "e\<^sub>3 \<cdot> e\<^sub>1 \<nabla> e\<^sub>2" v' rule: evaluate.induct)
+  case (ev_comp v v' v'')
+    thus ?case by (induction v "e\<^sub>1 \<nabla> e\<^sub>2" v' rule: evaluate.induct) simp_all
+  qed
+
+lemma [elim]: "v ~ e\<^sub>1 \<nabla> e\<^sub>2 \<cdot> \<iota>\<^sub>l \<leadsto> v' \<Longrightarrow> v ~ e\<^sub>1 \<leadsto> v'"
+  proof (induction v "e\<^sub>1 \<nabla> e\<^sub>2 \<cdot> \<iota>\<^sub>l" v' rule: evaluate.induct)
+  case (ev_comp v v' v'')
+    with ev_comp(2) show ?case
+      proof (induction v' "e\<^sub>1 \<nabla> e\<^sub>2" v'' rule: evaluate.induct)
+      case (ev_csl v' v'')
+        moreover hence "v' = v" by auto
+        ultimately show ?case by simp
+      next case (ev_csr v' v'')
+        hence False by auto
+        thus ?case by simp
+      qed
+  qed
+
+lemma [elim]: "v ~ e\<^sub>1 \<nabla> e\<^sub>2 \<cdot> \<iota>\<^sub>r \<leadsto> v' \<Longrightarrow> v ~ e\<^sub>2 \<leadsto> v'"
+  proof (induction v "e\<^sub>1 \<nabla> e\<^sub>2 \<cdot> \<iota>\<^sub>r" v' rule: evaluate.induct)
+  case (ev_comp v v' v'')
+    with ev_comp(2) show ?case
+      proof (induction v' "e\<^sub>1 \<nabla> e\<^sub>2" v'' rule: evaluate.induct)
+      case (ev_csl v' v'')
+        hence False by auto
+        thus ?case by blast
+      next case (ev_csr v' v'')
+        moreover hence "v' = v" by auto
+        ultimately show ?case by blast
+      qed
+  qed
+
 (* in terms of the actual expression equality *)
 
 lemma equiv_refl [simp]: "e\<^sub>1 \<simeq> e\<^sub>1"
@@ -94,6 +156,9 @@ lemma [simp]: "e\<^sub>1 \<simeq> e\<^sub>2 \<Longrightarrow> e\<^sub>3 \<simeq>
   by (auto simp add: expression_equality_def)
 
 lemma [simp]: "e\<^sub>1 \<simeq> e\<^sub>2 \<Longrightarrow> e\<^sub>3 \<simeq> e\<^sub>4 \<Longrightarrow>  e\<^sub>1 \<triangle> e\<^sub>3 \<simeq> e\<^sub>2 \<triangle> e\<^sub>4"
+  by (auto simp add: expression_equality_def)
+
+lemma [simp]: "e\<^sub>1 \<simeq> e\<^sub>2 \<Longrightarrow> e\<^sub>3 \<simeq> e\<^sub>4 \<Longrightarrow>  e\<^sub>1 \<nabla> e\<^sub>3 \<simeq> e\<^sub>2 \<nabla> e\<^sub>4"
   by (auto simp add: expression_equality_def)
 
 lemma [simp]: "(e\<^sub>1 \<cdot> e\<^sub>2) \<cdot> e\<^sub>3 \<simeq> e\<^sub>1 \<cdot> e\<^sub>2 \<cdot> e\<^sub>3"
@@ -115,6 +180,18 @@ lemma [simp]: "\<pi>\<^sub>1 \<cdot> e\<^sub>1 \<triangle> e\<^sub>2 \<simeq> e\
   by (auto simp add: expression_equality_def)
 
 lemma [simp]: "\<pi>\<^sub>2 \<cdot> e\<^sub>1 \<triangle> e\<^sub>2 \<simeq> e\<^sub>2"
+  by (auto simp add: expression_equality_def)
+
+lemma [simp]: "\<iota>\<^sub>l \<nabla> \<iota>\<^sub>r \<simeq> \<epsilon>"
+  by (auto simp add: expression_equality_def)
+
+lemma [simp]: "e\<^sub>3 \<cdot> e\<^sub>1 \<nabla> e\<^sub>2 \<simeq> (e\<^sub>3 \<cdot> e\<^sub>1) \<nabla> (e\<^sub>3 \<cdot> e\<^sub>2)"
+  by (auto simp add: expression_equality_def)
+
+lemma [simp]: "e\<^sub>1 \<nabla> e\<^sub>2 \<cdot> \<iota>\<^sub>l \<simeq> e\<^sub>1"
+  by (auto simp add: expression_equality_def)
+
+lemma [simp]: "e\<^sub>1 \<nabla> e\<^sub>2 \<cdot> \<iota>\<^sub>r \<simeq> e\<^sub>2"
   by (auto simp add: expression_equality_def)
 
 end

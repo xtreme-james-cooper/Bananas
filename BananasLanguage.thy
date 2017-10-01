@@ -13,11 +13,11 @@ and funct =
 | ProdF funct funct
 | SumF funct funct
 
-primrec apply_functor :: "funct \<Rightarrow> type \<Rightarrow> type" (infixr "\<star>" 80) where
-  "Id \<star> t = t"
-| "K t' \<star> t = t'"
-| "ProdF f\<^sub>1 f\<^sub>2 \<star> t = (f\<^sub>1 \<star> t) \<otimes> (f\<^sub>2 \<star> t)"
-| "SumF f\<^sub>1 f\<^sub>2 \<star> t = (f\<^sub>1 \<star> t) \<oplus> (f\<^sub>2 \<star> t)"
+datatype expr = 
+  \<epsilon> | Comp expr expr (infixr "\<cdot>" 65)
+| \<pi>\<^sub>1 | \<pi>\<^sub>2 | Tuple expr expr (infix "\<triangle>" 80)
+| \<iota>\<^sub>l | \<iota>\<^sub>r | Case expr expr (infix "\<nabla>" 80)
+| Outj funct
 
 datatype val = 
   UnitV
@@ -25,24 +25,11 @@ datatype val =
 | InlV val | InrV val
 | InjV funct val 
 
-datatype expr = 
-  \<epsilon> | Comp expr expr (infixr "\<cdot>" 70)
-| \<pi>\<^sub>1 | \<pi>\<^sub>2 | Tuple expr expr (infix "\<triangle>" 80)
-| \<iota>\<^sub>l | \<iota>\<^sub>r | Case expr expr (infix "\<nabla>" 80)
-| Outj funct
-
-inductive typecheck\<^sub>v :: "val \<Rightarrow> type \<Rightarrow> bool" (infix "\<turnstile>" 60) where
-  tc_unit [simp]: "UnitV \<turnstile> Unit"
-| tc_pair [simp]: "v\<^sub>1 \<turnstile> t\<^sub>1 \<Longrightarrow> v\<^sub>2 \<turnstile> t\<^sub>2 \<Longrightarrow> PairV v\<^sub>1 v\<^sub>2 \<turnstile> t\<^sub>1 \<otimes> t\<^sub>2"
-| tc_inlv [simp]: "v \<turnstile> t\<^sub>1 \<Longrightarrow> InlV v \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2"
-| tc_inrv [simp]: "v \<turnstile> t\<^sub>2 \<Longrightarrow> InrV v \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2"
-| tc_inj [simp]: "v \<turnstile> f \<star> \<mu> f \<Longrightarrow> InjV f v \<turnstile> \<mu> f"
-
-inductive_cases [elim]: "UnitV \<turnstile> t"
-inductive_cases [elim]: "PairV e\<^sub>1 e\<^sub>2 \<turnstile> t"
-inductive_cases [elim]: "InrV e \<turnstile> t"
-inductive_cases [elim]: "InlV e \<turnstile> t"
-inductive_cases [elim]: "InjV f e \<turnstile> t"
+primrec apply_functor :: "funct \<Rightarrow> type \<Rightarrow> type" (infixr "\<star>" 80) where
+  "Id \<star> t = t"
+| "K t' \<star> t = t'"
+| "ProdF f\<^sub>1 f\<^sub>2 \<star> t = (f\<^sub>1 \<star> t) \<otimes> (f\<^sub>2 \<star> t)"
+| "SumF f\<^sub>1 f\<^sub>2 \<star> t = (f\<^sub>1 \<star> t) \<oplus> (f\<^sub>2 \<star> t)"
 
 inductive typecheck\<^sub>e :: "expr \<Rightarrow> type \<Rightarrow> type \<Rightarrow> bool" (infix "\<turnstile> _ \<rightarrow>" 60) where
   tc_id [simp]: "\<epsilon> \<turnstile> t \<rightarrow> t"
@@ -65,6 +52,19 @@ inductive_cases [elim]: "\<iota>\<^sub>r \<turnstile> t \<rightarrow> t'"
 inductive_cases [elim]: "f\<^sub>l \<nabla> f\<^sub>r \<turnstile> t \<rightarrow> t'"
 inductive_cases [elim]: "Outj f \<turnstile> t \<rightarrow> t'"
 
+inductive typecheck\<^sub>v :: "val \<Rightarrow> type \<Rightarrow> bool" (infix "\<turnstile>" 60) where
+  tc_unit [simp]: "UnitV \<turnstile> Unit"
+| tc_pair [simp]: "v\<^sub>1 \<turnstile> t\<^sub>1 \<Longrightarrow> v\<^sub>2 \<turnstile> t\<^sub>2 \<Longrightarrow> PairV v\<^sub>1 v\<^sub>2 \<turnstile> t\<^sub>1 \<otimes> t\<^sub>2"
+| tc_inlv [simp]: "v \<turnstile> t\<^sub>1 \<Longrightarrow> InlV v \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2"
+| tc_inrv [simp]: "v \<turnstile> t\<^sub>2 \<Longrightarrow> InrV v \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2"
+| tc_inj [simp]: "v \<turnstile> f \<star> \<mu> f \<Longrightarrow> InjV f v \<turnstile> \<mu> f"
+
+inductive_cases [elim]: "UnitV \<turnstile> t"
+inductive_cases [elim]: "PairV v\<^sub>1 v\<^sub>2 \<turnstile> t"
+inductive_cases [elim]: "InrV v \<turnstile> t"
+inductive_cases [elim]: "InlV v \<turnstile> t"
+inductive_cases [elim]: "InjV f v \<turnstile> t"
+
 inductive evaluate :: "val \<Rightarrow> expr \<Rightarrow> val \<Rightarrow> bool" (infix "~ _ \<leadsto>" 60) where
   ev_id [simp]: "v ~ \<epsilon> \<leadsto> v"
 | ev_comp [simp]: "v ~ g \<leadsto> v' \<Longrightarrow> v' ~ f \<leadsto> v'' \<Longrightarrow> v ~ f \<cdot> g \<leadsto> v''"
@@ -86,10 +86,10 @@ lemma canonical_unit: "v \<turnstile> Unit \<Longrightarrow> v = UnitV"
   by (induction v Unit rule: typecheck\<^sub>v.induct) simp_all
 
 lemma canonical_prod: "v \<turnstile> t\<^sub>1 \<otimes> t\<^sub>2 \<Longrightarrow> \<exists>v\<^sub>1 v\<^sub>2. v\<^sub>1 \<turnstile> t\<^sub>1 \<and> v\<^sub>2 \<turnstile> t\<^sub>2 \<and> v = PairV v\<^sub>1 v\<^sub>2"
-  by (induction v "Prod t\<^sub>1 t\<^sub>2" rule: typecheck\<^sub>v.induct) simp_all
+  by (induction v "t\<^sub>1 \<otimes> t\<^sub>2" rule: typecheck\<^sub>v.induct) simp_all
 
 lemma canonical_sum: "v \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2 \<Longrightarrow> \<exists>v'. (v' \<turnstile> t\<^sub>1 \<and> v = InlV v') \<or> (v' \<turnstile> t\<^sub>2 \<and> v = InrV v')"
-  by (induction v "Sum t\<^sub>1 t\<^sub>2" rule: typecheck\<^sub>v.induct) simp_all
+  by (induction v "t\<^sub>1 \<oplus> t\<^sub>2" rule: typecheck\<^sub>v.induct) simp_all
 
 lemma canonical_mu: "v \<turnstile> \<mu> f \<Longrightarrow> \<exists>v'. v' \<turnstile> f \<star> \<mu> f \<and> v = InjV f v'"
   by (induction v "\<mu> f" rule: typecheck\<^sub>v.induct) simp_all

@@ -43,7 +43,45 @@ lemma [simp]: "((e\<^sub>1\<^sub>1 \<cdot> e\<^sub>1\<^sub>2) \<cdot> \<pi>\<^su
       by (metis equiv_sym)
   qed
 
-lemma prod_bifunctor: "bifunctor (op \<otimes>) (\<lambda>f g. (f \<cdot> \<pi>\<^sub>1) \<triangle> (g \<cdot> \<pi>\<^sub>2))"
+theorem prod_bifunctor: "bifunctor (op \<otimes>) (\<lambda>f g. (f \<cdot> \<pi>\<^sub>1) \<triangle> (g \<cdot> \<pi>\<^sub>2))"
+  by (simp add: bifunctor_def)
+
+lemma [simp]: "e\<^sub>1 \<turnstile> t\<^sub>1\<^sub>1 \<rightarrow> t\<^sub>1\<^sub>2 \<Longrightarrow> e\<^sub>2 \<turnstile> t\<^sub>2\<^sub>1 \<rightarrow> t\<^sub>2\<^sub>2 \<Longrightarrow> (\<iota>\<^sub>l \<cdot> e\<^sub>1) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2) \<turnstile> t\<^sub>1\<^sub>1 \<oplus> t\<^sub>2\<^sub>1 \<rightarrow> t\<^sub>1\<^sub>2 \<oplus> t\<^sub>2\<^sub>2"
+  proof -
+    assume "e\<^sub>1 \<turnstile> t\<^sub>1\<^sub>1 \<rightarrow> t\<^sub>1\<^sub>2"
+    moreover have "\<iota>\<^sub>l \<turnstile> t\<^sub>1\<^sub>2 \<rightarrow> t\<^sub>1\<^sub>2 \<oplus> t\<^sub>2\<^sub>2" by simp
+    ultimately have X: "\<iota>\<^sub>l \<cdot> e\<^sub>1 \<turnstile> t\<^sub>1\<^sub>1 \<rightarrow> t\<^sub>1\<^sub>2 \<oplus> t\<^sub>2\<^sub>2" by (metis tc_comp)
+    assume "e\<^sub>2 \<turnstile> t\<^sub>2\<^sub>1 \<rightarrow> t\<^sub>2\<^sub>2"
+    moreover have "\<iota>\<^sub>r \<turnstile> t\<^sub>2\<^sub>2 \<rightarrow> t\<^sub>1\<^sub>2 \<oplus> t\<^sub>2\<^sub>2" by simp
+    ultimately have "\<iota>\<^sub>r \<cdot> e\<^sub>2 \<turnstile> t\<^sub>2\<^sub>1 \<rightarrow> t\<^sub>1\<^sub>2 \<oplus> t\<^sub>2\<^sub>2" by (metis tc_comp)
+    with X show "(\<iota>\<^sub>l \<cdot> e\<^sub>1) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2) \<turnstile> t\<^sub>1\<^sub>1 \<oplus> t\<^sub>2\<^sub>1 \<rightarrow> t\<^sub>1\<^sub>2 \<oplus> t\<^sub>2\<^sub>2" by simp
+  qed
+
+lemma [simp]: "(\<iota>\<^sub>l \<cdot> \<epsilon>) \<nabla> (\<iota>\<^sub>r \<cdot> \<epsilon>) \<simeq> \<epsilon>"
+  proof -
+    have "(\<iota>\<^sub>l \<cdot> \<epsilon>) \<nabla> (\<iota>\<^sub>r \<cdot> \<epsilon>) \<simeq> \<iota>\<^sub>l \<nabla> \<iota>\<^sub>r" by simp
+    moreover have "\<iota>\<^sub>l \<nabla> \<iota>\<^sub>r \<simeq> \<epsilon>" by simp
+    ultimately show "(\<iota>\<^sub>l \<cdot> \<epsilon>) \<nabla> (\<iota>\<^sub>r \<cdot> \<epsilon>) \<simeq> \<epsilon>" by (metis equiv_trans)
+  qed
+
+lemma [simp]: "(\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1 \<cdot> e\<^sub>1\<^sub>2) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1 \<cdot> e\<^sub>2\<^sub>2) \<simeq> (\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1) \<cdot> (\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>2) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>2)"
+  proof -
+    have "(((\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1) \<cdot> \<iota>\<^sub>l) \<cdot> e\<^sub>1\<^sub>2) \<nabla> (((\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1) \<cdot> \<iota>\<^sub>r) \<cdot> e\<^sub>2\<^sub>2) \<simeq> 
+      ((\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1) \<cdot> \<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>2) \<nabla> ((\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1) \<cdot> \<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>2)" by simp
+    hence "((\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1) \<cdot> \<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>2) \<nabla> ((\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1) \<cdot> \<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>2) \<simeq> 
+      (((\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1) \<cdot> \<iota>\<^sub>l) \<cdot> e\<^sub>1\<^sub>2) \<nabla> (((\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1) \<cdot> \<iota>\<^sub>r) \<cdot> e\<^sub>2\<^sub>2)" by (metis equiv_sym)
+    moreover have "(\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1) \<cdot> (\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>2) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>2) \<simeq> 
+      ((\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1) \<cdot> \<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>2) \<nabla> ((\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1) \<cdot> \<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>2)" by simp
+    moreover have "(((\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1) \<cdot> \<iota>\<^sub>l) \<cdot> e\<^sub>1\<^sub>2) \<nabla> (((\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1) \<cdot> \<iota>\<^sub>r) \<cdot> e\<^sub>2\<^sub>2) \<simeq> 
+      ((\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1) \<cdot> e\<^sub>1\<^sub>2) \<nabla> ((\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1) \<cdot> e\<^sub>2\<^sub>2)" by simp
+    moreover have "((\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1) \<cdot> e\<^sub>1\<^sub>2) \<nabla> ((\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1) \<cdot> e\<^sub>2\<^sub>2) \<simeq> (\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1 \<cdot> e\<^sub>1\<^sub>2) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1 \<cdot> e\<^sub>2\<^sub>2)" by simp
+    ultimately have "(\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1) \<cdot> (\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>2) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>2) \<simeq> (\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1 \<cdot> e\<^sub>1\<^sub>2) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1 \<cdot> e\<^sub>2\<^sub>2)" 
+      using equiv_trans by blast
+    thus "(\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1 \<cdot> e\<^sub>1\<^sub>2) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1 \<cdot> e\<^sub>2\<^sub>2) \<simeq> (\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>1) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>1) \<cdot> (\<iota>\<^sub>l \<cdot> e\<^sub>1\<^sub>2) \<nabla> (\<iota>\<^sub>r \<cdot> e\<^sub>2\<^sub>2)" 
+      by (metis equiv_sym)
+  qed
+
+theorem sum_bifunctor: "bifunctor (op \<oplus>) (\<lambda>f g. (\<iota>\<^sub>l \<cdot> f) \<nabla> (\<iota>\<^sub>r \<cdot> g))"
   by (simp add: bifunctor_def)
 
 end
