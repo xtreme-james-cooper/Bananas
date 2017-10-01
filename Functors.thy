@@ -12,7 +12,8 @@ definition bifunctor :: "(type \<Rightarrow> type \<Rightarrow>  type) \<Rightar
   "bifunctor F f = (
      (\<forall>e\<^sub>1 e\<^sub>2 t\<^sub>1\<^sub>1 t\<^sub>1\<^sub>2 t\<^sub>2\<^sub>1 t\<^sub>2\<^sub>2. (e\<^sub>1 \<turnstile> t\<^sub>1\<^sub>1 \<rightarrow> t\<^sub>1\<^sub>2) \<longrightarrow> (e\<^sub>2 \<turnstile> t\<^sub>2\<^sub>1 \<rightarrow> t\<^sub>2\<^sub>2) \<longrightarrow> (f e\<^sub>1 e\<^sub>2 \<turnstile> F t\<^sub>1\<^sub>1 t\<^sub>2\<^sub>1 \<rightarrow> F t\<^sub>1\<^sub>2 t\<^sub>2\<^sub>2)) 
        \<and> f \<epsilon> \<epsilon> \<simeq> \<epsilon> 
-       \<and> (\<forall>e\<^sub>1\<^sub>1 e\<^sub>1\<^sub>2 e\<^sub>2\<^sub>1 e\<^sub>2\<^sub>2. f (e\<^sub>1\<^sub>1 \<cdot> e\<^sub>1\<^sub>2) (e\<^sub>2\<^sub>1 \<cdot> e\<^sub>2\<^sub>2) \<simeq> f e\<^sub>1\<^sub>1 e\<^sub>2\<^sub>1 \<cdot> f e\<^sub>1\<^sub>2 e\<^sub>2\<^sub>2))"
+       \<and> (\<forall>e\<^sub>1\<^sub>1 e\<^sub>1\<^sub>2 e\<^sub>2\<^sub>1 e\<^sub>2\<^sub>2. f (e\<^sub>1\<^sub>1 \<cdot> e\<^sub>1\<^sub>2) (e\<^sub>2\<^sub>1 \<cdot> e\<^sub>2\<^sub>2) \<simeq> f e\<^sub>1\<^sub>1 e\<^sub>2\<^sub>1 \<cdot> f e\<^sub>1\<^sub>2 e\<^sub>2\<^sub>2 
+                        \<or> f (e\<^sub>1\<^sub>1 \<cdot> e\<^sub>1\<^sub>2) (e\<^sub>2\<^sub>1 \<cdot> e\<^sub>2\<^sub>2) \<simeq> f e\<^sub>2\<^sub>1 e\<^sub>1\<^sub>1 \<cdot> f e\<^sub>1\<^sub>2 e\<^sub>2\<^sub>2))" (* hack to permit contravariant functions *)
 
 lemma [simp]: "(\<epsilon> \<cdot> \<pi>\<^sub>1) \<triangle> (\<epsilon> \<cdot> \<pi>\<^sub>2) \<simeq> \<epsilon>" 
   proof -
