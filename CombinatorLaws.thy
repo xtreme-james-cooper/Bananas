@@ -98,6 +98,18 @@ lemma [simp]: "\<pi>\<^sub>1 \<cdot> e\<^sub>1 \<triangle> e\<^sub>2 \<simeq> e\
 lemma [simp]: "\<pi>\<^sub>2 \<cdot> e\<^sub>1 \<triangle> e\<^sub>2 \<simeq> e\<^sub>2"
   by (auto simp add: expression_equality_def)
 
+lemma [simp]: "\<epsilon> \<parallel> \<epsilon> \<simeq> \<epsilon>"
+  by (auto simp add: expression_equality_def)
+
+lemma [simp]: "(e\<^sub>1\<^sub>1 \<cdot> e\<^sub>1\<^sub>2) \<parallel> (e\<^sub>2\<^sub>1 \<cdot> e\<^sub>2\<^sub>2) \<simeq> e\<^sub>1\<^sub>1 \<parallel> e\<^sub>2\<^sub>1 \<cdot> e\<^sub>1\<^sub>2 \<parallel> e\<^sub>2\<^sub>2"
+  by (auto simp add: expression_equality_def)
+
+lemma [simp]: "\<pi>\<^sub>1 \<cdot> e\<^sub>1 \<parallel> e\<^sub>2 \<simeq> e\<^sub>1 \<cdot> \<pi>\<^sub>1"
+  by (auto simp add: expression_equality_def)
+
+lemma [simp]: "\<pi>\<^sub>2 \<cdot> e\<^sub>1 \<parallel> e\<^sub>2 \<simeq> e\<^sub>2 \<cdot> \<pi>\<^sub>2"
+  by (auto simp add: expression_equality_def)
+
 lemma [simp]: "\<iota>\<^sub>l \<nabla> \<iota>\<^sub>r \<simeq> \<epsilon>"
   by (auto simp add: expression_equality_def)
 
@@ -110,7 +122,22 @@ lemma [simp]: "e\<^sub>1 \<nabla> e\<^sub>2 \<cdot> \<iota>\<^sub>l \<simeq> e\<
 lemma [simp]: "e\<^sub>1 \<nabla> e\<^sub>2 \<cdot> \<iota>\<^sub>r \<simeq> e\<^sub>2"
   by (auto simp add: expression_equality_def)
 
-lemma [simp]: "g \<cdot> f \<simeq> \<epsilon> \<Longrightarrow> g \<leftarrow> f \<simeq> \<epsilon>"
+lemma [simp]: "\<epsilon> \<bar> \<epsilon> \<simeq> \<epsilon>"
+  by (auto simp add: expression_equality_def)
+
+lemma [simp]: "(e\<^sub>1\<^sub>1 \<cdot> e\<^sub>1\<^sub>2) \<bar> (e\<^sub>2\<^sub>1 \<cdot> e\<^sub>2\<^sub>2) \<simeq> (e\<^sub>1\<^sub>1 \<bar> e\<^sub>2\<^sub>1) \<cdot> (e\<^sub>1\<^sub>2 \<bar> e\<^sub>2\<^sub>2)"
+  by (auto simp add: expression_equality_def)
+
+lemma [simp]: "e\<^sub>1 \<bar> e\<^sub>2 \<cdot> \<iota>\<^sub>l \<simeq> \<iota>\<^sub>l \<cdot> e\<^sub>1"
+  by (auto simp add: expression_equality_def)
+
+lemma [simp]: "e\<^sub>1 \<bar> e\<^sub>2 \<cdot> \<iota>\<^sub>r \<simeq> \<iota>\<^sub>r \<cdot> e\<^sub>2"
+  by (auto simp add: expression_equality_def)
+
+lemma [simp]: "\<epsilon> \<leftarrow> \<epsilon> \<simeq> \<epsilon>"
+  by (auto simp add: expression_equality_def)
+
+lemma [simp]: "(e\<^sub>1\<^sub>1 \<cdot> e\<^sub>1\<^sub>2) \<leftarrow> (e\<^sub>2\<^sub>1 \<cdot> e\<^sub>2\<^sub>2) \<simeq> e\<^sub>1\<^sub>1 \<leftarrow> e\<^sub>2\<^sub>1 \<cdot> e\<^sub>1\<^sub>2 \<leftarrow> e\<^sub>2\<^sub>2"
   by (auto simp add: expression_equality_def)
 
 end
