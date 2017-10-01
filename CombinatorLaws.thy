@@ -93,4 +93,10 @@ lemma [simp]: "\<epsilon> \<leftarrow> \<epsilon> \<simeq> \<epsilon>"
 lemma [simp]: "(e\<^sub>1\<^sub>1 \<cdot> e\<^sub>1\<^sub>2) \<leftarrow> (e\<^sub>2\<^sub>1 \<cdot> e\<^sub>2\<^sub>2) \<simeq> e\<^sub>1\<^sub>1 \<leftarrow> e\<^sub>2\<^sub>1 \<cdot> e\<^sub>1\<^sub>2 \<leftarrow> e\<^sub>2\<^sub>2"
   by (auto simp add: expression_equality_def)
 
+lemma [simp]: "\<kappa> v \<cdot> f \<simeq> \<kappa> v"
+  by (auto simp add: expression_equality_def)
+
+lemma [simp]: "? p \<cdot> f \<simeq> f \<bar> f \<cdot> ? (p \<cdot> f)"
+  by (auto simp add: expression_equality_def)
+
 end

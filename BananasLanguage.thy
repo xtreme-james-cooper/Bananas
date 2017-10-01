@@ -3,7 +3,7 @@ imports Main
 begin
 
 datatype type = 
-  Unit
+  Unit ("\<one>")
 | Prod type type (infixr "\<otimes>" 85)
 | Sum type type (infixr "\<oplus>" 80)
 | Func type type (infixr "\<hookrightarrow>" 70)
@@ -11,18 +11,17 @@ datatype type =
 and funct =
   Id
 | K type
-| ProdF funct funct
-| SumF funct funct
+| ProdF funct funct (infixr "\<Otimes>" 85)
+| SumF funct funct (infixr "\<Oplus>" 80)
 
 datatype expr = 
-  Identity ("\<epsilon>") | Comp expr expr (infixr "\<cdot>" 65)
+  Identity ("\<epsilon>") | Comp expr expr (infixr "\<cdot>" 65) | Const val ("\<kappa>")
 | Proj1 ("\<pi>\<^sub>1") | Proj2 ("\<pi>\<^sub>2") | Duplicate ("\<Theta>") | Pairwise expr expr (infix "\<parallel>" 80)
 | Injl ("\<iota>\<^sub>l") | Injr ("\<iota>\<^sub>r") | Strip ("\<Xi>") |  Case expr expr (infix "\<bar>" 80)
 | Distribute ("\<rhd>")
 | Apply | Arrow expr expr (infix "\<leftarrow>" 70)
 | Outj funct
-
-datatype val = 
+and val = 
   UnitV
 | PairV val val 
 | InlV val | InrV val
@@ -37,8 +36,10 @@ primrec apply_functor :: "funct \<Rightarrow> type \<Rightarrow> type" (infixr "
 | "ProdF f\<^sub>1 f\<^sub>2 \<star> t = (f\<^sub>1 \<star> t) \<otimes> (f\<^sub>2 \<star> t)"
 | "SumF f\<^sub>1 f\<^sub>2 \<star> t = (f\<^sub>1 \<star> t) \<oplus> (f\<^sub>2 \<star> t)"
 
-inductive typecheck\<^sub>e :: "expr \<Rightarrow> type \<Rightarrow> type \<Rightarrow> bool" (infix "\<turnstile> _ \<rightarrow>" 60) where
+inductive typecheck\<^sub>e :: "expr \<Rightarrow> type \<Rightarrow> type \<Rightarrow> bool" (infix "\<turnstile> _ \<rightarrow>" 60)
+      and typecheck\<^sub>v :: "val \<Rightarrow> type \<Rightarrow> bool" (infix "\<turnstile>" 60) where
   tc_id [simp]: "\<epsilon> \<turnstile> t \<rightarrow> t"
+| tc_con [simp]: "v \<turnstile> t\<^sub>2 \<Longrightarrow> \<kappa> v \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2"
 | tc_comp [simp]: "f \<turnstile> t\<^sub>2 \<rightarrow> t\<^sub>3 \<Longrightarrow> g \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> f \<cdot> g \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>3"
 | tc_fst [simp]: "\<pi>\<^sub>1 \<turnstile> t\<^sub>1 \<otimes> t\<^sub>2 \<rightarrow> t\<^sub>1"
 | tc_snd [simp]: "\<pi>\<^sub>2 \<turnstile> t\<^sub>1 \<otimes> t\<^sub>2 \<rightarrow> t\<^sub>2"
@@ -53,7 +54,15 @@ inductive typecheck\<^sub>e :: "expr \<Rightarrow> type \<Rightarrow> type \<Rig
 | tc_arr [simp]: "f \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> g \<turnstile> t\<^sub>3 \<rightarrow> t\<^sub>4 \<Longrightarrow> g \<leftarrow> f \<turnstile> t\<^sub>2 \<hookrightarrow> t\<^sub>3 \<rightarrow> t\<^sub>1 \<hookrightarrow> t\<^sub>4"
 | tc_outj [simp]: "Outj f \<turnstile> \<mu> f \<rightarrow> f \<star> \<mu> f"
 
+| tcv_unit [simp]: "UnitV \<turnstile> \<one>"
+| tcv_pair [simp]: "v\<^sub>1 \<turnstile> t\<^sub>1 \<Longrightarrow> v\<^sub>2 \<turnstile> t\<^sub>2 \<Longrightarrow> PairV v\<^sub>1 v\<^sub>2 \<turnstile> t\<^sub>1 \<otimes> t\<^sub>2"
+| tcv_inl [simp]: "v \<turnstile> t\<^sub>1 \<Longrightarrow> InlV v \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2"
+| tcv_inr [simp]: "v \<turnstile> t\<^sub>2 \<Longrightarrow> InrV v \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2"
+| tcv_fun [simp]: "e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> FunV e \<turnstile> t\<^sub>1 \<hookrightarrow> t\<^sub>2"
+| tcv_inj [simp]: "v \<turnstile> f \<star> \<mu> f \<Longrightarrow> InjV f v \<turnstile> \<mu> f"
+
 inductive_cases [elim]: "\<epsilon> \<turnstile> t \<rightarrow> t'"
+inductive_cases [elim]: "\<kappa> v \<turnstile> t \<rightarrow> t'"
 inductive_cases [elim]: "f \<cdot> g \<turnstile> t \<rightarrow> t'"
 inductive_cases [elim]: "\<pi>\<^sub>1 \<turnstile> t \<rightarrow> t'"
 inductive_cases [elim]: "\<pi>\<^sub>2 \<turnstile> t \<rightarrow> t'"
@@ -68,14 +77,6 @@ inductive_cases [elim]: "Apply \<turnstile> t \<rightarrow> t'"
 inductive_cases [elim]: "g \<leftarrow> f \<turnstile> t \<rightarrow> t'"
 inductive_cases [elim]: "Outj f \<turnstile> t \<rightarrow> t'"
 
-inductive typecheck\<^sub>v :: "val \<Rightarrow> type \<Rightarrow> bool" (infix "\<turnstile>" 60) where
-  tc_unit [simp]: "UnitV \<turnstile> Unit"
-| tc_pair [simp]: "v\<^sub>1 \<turnstile> t\<^sub>1 \<Longrightarrow> v\<^sub>2 \<turnstile> t\<^sub>2 \<Longrightarrow> PairV v\<^sub>1 v\<^sub>2 \<turnstile> t\<^sub>1 \<otimes> t\<^sub>2"
-| tc_inlv [simp]: "v \<turnstile> t\<^sub>1 \<Longrightarrow> InlV v \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2"
-| tc_inrv [simp]: "v \<turnstile> t\<^sub>2 \<Longrightarrow> InrV v \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2"
-| tc_funv [simp]: "e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> FunV e \<turnstile> t\<^sub>1 \<hookrightarrow> t\<^sub>2"
-| tc_inj [simp]: "v \<turnstile> f \<star> \<mu> f \<Longrightarrow> InjV f v \<turnstile> \<mu> f"
-
 inductive_cases [elim]: "UnitV \<turnstile> t"
 inductive_cases [elim]: "PairV v\<^sub>1 v\<^sub>2 \<turnstile> t"
 inductive_cases [elim]: "InrV v \<turnstile> t"
@@ -86,7 +87,8 @@ inductive_cases [elim]: "InjV f v \<turnstile> t"
 (* evaluation *)
 
 inductive evaluate :: "expr \<Rightarrow> val \<Rightarrow> expr \<Rightarrow> val \<Rightarrow> bool" (infix "\<cdot> _ \<leadsto> _ \<cdot>" 60) where
-  ev_comp1 [simp]: "g \<cdot> v \<leadsto> g' \<cdot> v' \<Longrightarrow> (f \<cdot> g) \<cdot> v \<leadsto> (f \<cdot> g') \<cdot> v'"
+  ev_con [simp]: "\<kappa> v\<^sub>1 \<cdot> v\<^sub>2 \<leadsto> \<epsilon> \<cdot> v\<^sub>1"
+| ev_comp1 [simp]: "g \<cdot> v \<leadsto> g' \<cdot> v' \<Longrightarrow> (f \<cdot> g) \<cdot> v \<leadsto> (f \<cdot> g') \<cdot> v'"
 | ev_comp2 [simp]: "(f \<cdot> \<epsilon>) \<cdot> v \<leadsto> f \<cdot> v"
 | ev_fst [simp]: "\<pi>\<^sub>1 \<cdot> PairV v\<^sub>1 v\<^sub>2 \<leadsto> \<epsilon> \<cdot> v\<^sub>1"
 | ev_snd [simp]: "\<pi>\<^sub>2 \<cdot> PairV v\<^sub>1 v\<^sub>2 \<leadsto> \<epsilon> \<cdot> v\<^sub>2"
@@ -108,25 +110,27 @@ inductive evaluate :: "expr \<Rightarrow> val \<Rightarrow> expr \<Rightarrow> v
 
 (* safety *)
 
-lemma canonical_unit: "v \<turnstile> Unit \<Longrightarrow> v = UnitV"
-  by (induction v Unit rule: typecheck\<^sub>v.induct) simp_all
+lemma canonical_unit: "v \<turnstile> \<one> \<Longrightarrow> v = UnitV"
+  by (cases v \<one> rule: typecheck\<^sub>v.cases) simp_all
 
 lemma canonical_prod: "v \<turnstile> t\<^sub>1 \<otimes> t\<^sub>2 \<Longrightarrow> \<exists>v\<^sub>1 v\<^sub>2. v\<^sub>1 \<turnstile> t\<^sub>1 \<and> v\<^sub>2 \<turnstile> t\<^sub>2 \<and> v = PairV v\<^sub>1 v\<^sub>2"
-  by (induction v "t\<^sub>1 \<otimes> t\<^sub>2" rule: typecheck\<^sub>v.induct) simp_all
+  by (cases v "t\<^sub>1 \<otimes> t\<^sub>2" rule: typecheck\<^sub>v.cases) simp_all
 
 lemma canonical_sum: "v \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2 \<Longrightarrow> \<exists>v'. (v' \<turnstile> t\<^sub>1 \<and> v = InlV v') \<or> (v' \<turnstile> t\<^sub>2 \<and> v = InrV v')"
-  by (induction v "t\<^sub>1 \<oplus> t\<^sub>2" rule: typecheck\<^sub>v.induct) simp_all
+  by (cases v "t\<^sub>1 \<oplus> t\<^sub>2" rule: typecheck\<^sub>v.cases) simp_all
 
 lemma canonical_arrow: "v \<turnstile> t\<^sub>1 \<hookrightarrow> t\<^sub>2 \<Longrightarrow> \<exists>e. (e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2) \<and> v = FunV e"
-  by (induction v "t\<^sub>1 \<hookrightarrow> t\<^sub>2" rule: typecheck\<^sub>v.induct) simp_all
+  by (cases v "t\<^sub>1 \<hookrightarrow> t\<^sub>2" rule: typecheck\<^sub>v.cases) simp_all
 
 lemma canonical_mu: "v \<turnstile> \<mu> f \<Longrightarrow> \<exists>v'. v' \<turnstile> f \<star> \<mu> f \<and> v = InjV f v'"
-  by (induction v "\<mu> f" rule: typecheck\<^sub>v.induct) simp_all
+  by (cases v "\<mu> f" rule: typecheck\<^sub>v.cases) simp_all
 
 theorem progress: "e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> v \<turnstile> t\<^sub>1 \<Longrightarrow> e \<noteq> \<epsilon> \<Longrightarrow> \<exists>e' v'. e \<cdot> v \<leadsto> e' \<cdot> v'"
-  proof (induction e t\<^sub>1 t\<^sub>2 arbitrary: v rule: typecheck\<^sub>e.induct)
-  case tc_id
-    thus ?case by simp
+    and "v \<turnstile> t\<^sub>1 \<Longrightarrow> True"
+  proof (induction e t\<^sub>1 t\<^sub>2 arbitrary: v rule: typecheck\<^sub>e_typecheck\<^sub>v.inducts)
+  case (tc_con v\<^sub>2 t\<^sub>2 t\<^sub>1)
+    have "\<kappa> v\<^sub>2 \<cdot> v \<leadsto> \<epsilon> \<cdot> v\<^sub>2" by simp
+    thus ?case by fastforce
   next case (tc_comp f t\<^sub>2 t\<^sub>3 g t\<^sub>1)
     thus ?case
       proof (cases "g = \<epsilon>")
@@ -221,7 +225,7 @@ theorem progress: "e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrighta
     then obtain v' where "v = InjV f v'" using canonical_mu by blast
     moreover hence "Outj f \<cdot> v \<leadsto> \<epsilon> \<cdot> v'" by simp
     ultimately show ?case by fastforce
-  qed
+  qed simp_all
 
 theorem preservation: "e \<cdot> v \<leadsto> e' \<cdot> v' \<Longrightarrow> e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> v \<turnstile> t\<^sub>1 \<Longrightarrow> 
     \<exists>t\<^sub>3. (e' \<turnstile> t\<^sub>3 \<rightarrow> t\<^sub>2) \<and> (v' \<turnstile> t\<^sub>3)"

@@ -2,8 +2,10 @@ theory DerivedCombinators
 imports BananasLanguage
 begin
 
+(* derived types *)
+
 definition Bool :: type where
-  "Bool = Unit \<oplus> Unit"
+  "Bool = \<one> \<oplus> \<one>"
 
 definition TrueV :: val where
   "TrueV = InlV UnitV"
@@ -11,11 +13,43 @@ definition TrueV :: val where
 definition FalseV :: val where
   "FalseV = InrV UnitV"
 
+definition Nat :: type where
+  "Nat = \<mu> (K \<one> \<Oplus> Id)"
+
+definition ZeroV :: val where
+  "ZeroV = InjV (K \<one> \<Oplus> Id) (InlV UnitV)"
+
+definition SuccV :: "val \<Rightarrow> val" where
+  "SuccV v = InjV (K \<one> \<Oplus> Id) (InrV v)"
+
+definition List :: "type \<Rightarrow> type" where
+  "List t = \<mu> (K \<one> \<Oplus> K t \<Otimes> Id)"
+
+definition NilV :: "type \<Rightarrow> val" where
+  "NilV t = InjV (K \<one> \<Oplus> K t \<Otimes> Id) (InlV UnitV)"
+
+definition ConsV :: "type \<Rightarrow> val \<Rightarrow> val \<Rightarrow> val" where
+  "ConsV t v\<^sub>1 v\<^sub>2 = InjV (K \<one> \<Oplus> K t \<Otimes> Id) (InrV (PairV v\<^sub>1 v\<^sub>2))"
+
 lemma [simp]: "TrueV \<turnstile> Bool"
   by (simp add: TrueV_def Bool_def)
 
 lemma [simp]: "FalseV \<turnstile> Bool"
   by (simp add: FalseV_def Bool_def)
+
+lemma [simp]: "ZeroV \<turnstile> Nat"
+  by (simp add: ZeroV_def Nat_def)
+
+lemma [simp]: "n \<turnstile> Nat \<Longrightarrow> SuccV n \<turnstile> Nat"
+  by (simp add: SuccV_def Nat_def)
+
+lemma [simp]: "NilV t \<turnstile> List t"
+  by (simp add: NilV_def List_def)
+
+lemma [simp]: "v\<^sub>1 \<turnstile> t \<Longrightarrow> v\<^sub>2 \<turnstile> List t \<Longrightarrow> ConsV t v\<^sub>1 v\<^sub>2 \<turnstile> List t"
+  by (simp add: ConsV_def List_def)
+
+(* derived combinators *)
 
 definition tuple_pair :: "expr \<Rightarrow> expr \<Rightarrow> expr" (infix "\<triangle>" 80) where
   "e\<^sub>1 \<triangle> e\<^sub>2 = e\<^sub>1 \<parallel> e\<^sub>2 \<cdot> \<Theta>"
@@ -53,9 +87,9 @@ lemma tc_pred [simp]: "p \<turnstile> t \<rightarrow> Bool \<Longrightarrow> ? p
   proof (unfold predicate_def)
     assume "p \<turnstile> t \<rightarrow> Bool"
     hence "p \<parallel> \<epsilon> \<turnstile> t \<otimes> t \<rightarrow> Bool \<otimes> t" by simp
-    moreover have "\<rhd> \<turnstile> Bool \<otimes> t \<rightarrow> Unit \<otimes> t \<oplus> Unit \<otimes> t" by (simp add: Bool_def)
-    ultimately have "\<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta> \<turnstile> t \<rightarrow> Unit \<otimes> t \<oplus> Unit \<otimes> t" by simp
-    moreover have "\<pi>\<^sub>2 \<bar> \<pi>\<^sub>2 \<turnstile> Unit \<otimes> t \<oplus> Unit \<otimes> t \<rightarrow> t \<oplus> t" by simp
+    moreover have "\<rhd> \<turnstile> Bool \<otimes> t \<rightarrow> \<one> \<otimes> t \<oplus> \<one> \<otimes> t" by (simp add: Bool_def)
+    ultimately have "\<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta> \<turnstile> t \<rightarrow> \<one> \<otimes> t \<oplus> \<one> \<otimes> t" by simp
+    moreover have "\<pi>\<^sub>2 \<bar> \<pi>\<^sub>2 \<turnstile> \<one> \<otimes> t \<oplus> \<one> \<otimes> t \<rightarrow> t \<oplus> t" by simp
     ultimately show "\<pi>\<^sub>2 \<bar> \<pi>\<^sub>2 \<cdot> \<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta> \<turnstile> t \<rightarrow> t \<oplus> t" by (metis tc_comp)
   qed
 
