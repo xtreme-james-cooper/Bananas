@@ -30,7 +30,7 @@ definition swap :: expr ("\<bowtie>") where
   "\<bowtie> = \<pi>\<^sub>2 \<triangle> \<pi>\<^sub>1"
 
 definition distribute_right :: expr ("\<lhd>") where
-  "\<lhd> = \<bowtie> \<cdot> \<rhd> \<cdot> \<bowtie>"
+  "\<lhd> = \<bowtie> \<bar> \<bowtie> \<cdot> \<rhd> \<cdot> \<bowtie>"
 
 lemma tc_tup_pair [simp]: "f\<^sub>1 \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> f\<^sub>2 \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>3 \<Longrightarrow> f\<^sub>1 \<triangle> f\<^sub>2 \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<otimes> t\<^sub>3"
   proof (unfold tuple_pair_def)
@@ -52,17 +52,23 @@ lemma tc_cse_str [simp]: "f\<^sub>l \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub
 lemma tc_pred [simp]: "p \<turnstile> t \<rightarrow> Bool \<Longrightarrow> ? p \<turnstile> t \<rightarrow> t \<oplus> t"
   proof (unfold predicate_def)
     assume "p \<turnstile> t \<rightarrow> Bool"
-    thus "\<pi>\<^sub>2 \<bar> \<pi>\<^sub>2 \<cdot> \<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta> \<turnstile> t \<rightarrow> t \<oplus> t" by simp
+    hence "p \<parallel> \<epsilon> \<turnstile> t \<otimes> t \<rightarrow> Bool \<otimes> t" by simp
+    moreover have "\<rhd> \<turnstile> Bool \<otimes> t \<rightarrow> Unit \<otimes> t \<oplus> Unit \<otimes> t" by (simp add: Bool_def)
+    ultimately have "\<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta> \<turnstile> t \<rightarrow> Unit \<otimes> t \<oplus> Unit \<otimes> t" by simp
+    moreover have "\<pi>\<^sub>2 \<bar> \<pi>\<^sub>2 \<turnstile> Unit \<otimes> t \<oplus> Unit \<otimes> t \<rightarrow> t \<oplus> t" by simp
+    ultimately show "\<pi>\<^sub>2 \<bar> \<pi>\<^sub>2 \<cdot> \<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta> \<turnstile> t \<rightarrow> t \<oplus> t" by (metis tc_comp)
   qed
 
 lemma tc_swap [simp]: "\<bowtie> \<turnstile> t\<^sub>1 \<otimes> t\<^sub>2 \<rightarrow> t\<^sub>2 \<otimes> t\<^sub>1"
-  proof (unfold swap_def)
-    show "\<pi>\<^sub>2 \<triangle> \<pi>\<^sub>1 \<turnstile> t\<^sub>1 \<otimes> t\<^sub>2 \<rightarrow> t\<^sub>2 \<otimes> t\<^sub>1" by simp
-  qed
+  by (simp add: swap_def)
 
 lemma tc_distr [simp]: "\<lhd> \<turnstile> t\<^sub>3 \<otimes> (t\<^sub>1 \<oplus> t\<^sub>2) \<rightarrow> t\<^sub>3 \<otimes> t\<^sub>1 \<oplus> t\<^sub>3 \<otimes> t\<^sub>2"
   proof (unfold distribute_right_def)
-    show "\<bowtie> \<cdot> \<rhd> \<cdot> \<bowtie> \<turnstile> t\<^sub>3 \<otimes> (t\<^sub>1 \<oplus> t\<^sub>2) \<rightarrow> t\<^sub>3 \<otimes> t\<^sub>1 \<oplus> t\<^sub>3 \<otimes> t\<^sub>2" by simp
+    have "\<rhd> \<turnstile> (t\<^sub>1 \<oplus> t\<^sub>2) \<otimes> t\<^sub>3 \<rightarrow> t\<^sub>1 \<otimes> t\<^sub>3 \<oplus> t\<^sub>2 \<otimes> t\<^sub>3" by simp
+    moreover have "\<bowtie> \<turnstile> t\<^sub>3 \<otimes> (t\<^sub>1 \<oplus> t\<^sub>2) \<rightarrow> (t\<^sub>1 \<oplus> t\<^sub>2) \<otimes> t\<^sub>3" by simp
+    ultimately have "\<rhd> \<cdot> \<bowtie> \<turnstile> t\<^sub>3 \<otimes> (t\<^sub>1 \<oplus> t\<^sub>2) \<rightarrow> t\<^sub>1 \<otimes> t\<^sub>3 \<oplus> t\<^sub>2 \<otimes> t\<^sub>3" by (metis tc_comp)
+    moreover have "\<bowtie> \<bar> \<bowtie> \<turnstile> t\<^sub>1 \<otimes> t\<^sub>3 \<oplus> t\<^sub>2 \<otimes> t\<^sub>3 \<rightarrow> t\<^sub>3 \<otimes> t\<^sub>1 \<oplus> t\<^sub>3 \<otimes> t\<^sub>2" by simp
+    ultimately show "\<bowtie> \<bar> \<bowtie> \<cdot> \<rhd> \<cdot> \<bowtie> \<turnstile> t\<^sub>3 \<otimes> (t\<^sub>1 \<oplus> t\<^sub>2) \<rightarrow> t\<^sub>3 \<otimes> t\<^sub>1 \<oplus> t\<^sub>3 \<otimes> t\<^sub>2" by (metis tc_comp)
   qed
 
 lemma ev_tup_pair [simp]: "f\<^sub>1 \<cdot> v \<Down> v\<^sub>1 \<Longrightarrow> f\<^sub>2 \<cdot> v \<Down> v\<^sub>2 \<Longrightarrow> f\<^sub>1 \<triangle> f\<^sub>2 \<cdot> v \<Down> PairV v\<^sub>1 v\<^sub>2"
@@ -89,14 +95,26 @@ lemma ev_cse_str_r [simp]: "f\<^sub>r \<cdot> v \<Down> v' \<Longrightarrow> f\<
 
 lemma ev_pred_t [simp]: "p \<cdot> v \<Down> TrueV \<Longrightarrow> ? p \<cdot> v \<Down> InlV v"
   proof (unfold predicate_def)
-    assume "p \<cdot> v \<Down> TrueV"
-    show "\<pi>\<^sub>2 \<bar> \<pi>\<^sub>2 \<cdot> \<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta> \<cdot> v \<Down> InlV v" by simp
+    have "\<Theta> \<cdot> v \<Down> PairV v v" by simp
+    moreover assume "p \<cdot> v \<Down> TrueV"
+    moreover hence "(p \<parallel> \<epsilon>) \<cdot> PairV v v \<Down> PairV TrueV v" by simp
+    ultimately have "(p \<parallel> \<epsilon> \<cdot> \<Theta>) \<cdot> v \<Down> PairV TrueV v" by fastforce
+    moreover have "\<rhd> \<cdot> PairV TrueV v \<Down> InlV (PairV UnitV v)" by (simp add: TrueV_def)
+    ultimately have "(\<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta>) \<cdot> v \<Down> InlV (PairV UnitV v)" by fastforce
+    moreover have "(\<pi>\<^sub>2 \<bar> \<pi>\<^sub>2) \<cdot> InlV (PairV UnitV v) \<Down> InlV v" by simp
+    ultimately show "(\<pi>\<^sub>2 \<bar> \<pi>\<^sub>2 \<cdot> \<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta>) \<cdot> v \<Down> InlV v" by fastforce
   qed
 
 lemma ev_pred_f [simp]: "p \<cdot> v \<Down> FalseV \<Longrightarrow> ? p \<cdot> v \<Down> InrV v"
   proof (unfold predicate_def)
-    assume "p \<cdot> v \<Down> FalseV"
-    show "\<pi>\<^sub>2 \<bar> \<pi>\<^sub>2 \<cdot> \<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta> \<cdot> v \<Down> InrV v" by simp
+    have "\<Theta> \<cdot> v \<Down> PairV v v" by simp
+    moreover assume "p \<cdot> v \<Down> FalseV"
+    moreover hence "(p \<parallel> \<epsilon>) \<cdot> PairV v v \<Down> PairV FalseV v" by simp
+    ultimately have "(p \<parallel> \<epsilon> \<cdot> \<Theta>) \<cdot> v \<Down> PairV FalseV v" by fastforce
+    moreover have "\<rhd> \<cdot> PairV FalseV v \<Down> InrV (PairV UnitV v)" by (simp add: FalseV_def)
+    ultimately have "(\<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta>) \<cdot> v \<Down> InrV (PairV UnitV v)" by fastforce
+    moreover have "(\<pi>\<^sub>2 \<bar> \<pi>\<^sub>2) \<cdot> InrV (PairV UnitV v) \<Down> InrV v" by simp
+    ultimately show "(\<pi>\<^sub>2 \<bar> \<pi>\<^sub>2 \<cdot> \<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta>) \<cdot> v \<Down> InrV v" by fastforce
   qed
 
 lemma ev_swap [simp]: "\<bowtie> \<cdot> PairV v\<^sub>1 v\<^sub>2 \<Down> PairV v\<^sub>2 v\<^sub>1"
@@ -106,12 +124,20 @@ lemma ev_swap [simp]: "\<bowtie> \<cdot> PairV v\<^sub>1 v\<^sub>2 \<Down> PairV
 
 lemma ev_dstrl [simp]: "\<lhd> \<cdot> PairV v\<^sub>1 (InlV v\<^sub>2) \<Down> InlV (PairV v\<^sub>1 v\<^sub>2)"
   proof (unfold distribute_right_def)
-    show "\<bowtie> \<cdot> \<rhd> \<cdot> \<bowtie> \<cdot> PairV v\<^sub>1 (InlV v\<^sub>2) \<Down> InlV (PairV v\<^sub>1 v\<^sub>2)" by simp
+    have "\<bowtie> \<cdot> PairV v\<^sub>1 (InlV v\<^sub>2) \<Down> PairV (InlV v\<^sub>2) v\<^sub>1" by simp
+    moreover have "\<rhd> \<cdot> PairV (InlV v\<^sub>2) v\<^sub>1 \<Down> InlV (PairV v\<^sub>2 v\<^sub>1)" by simp
+    ultimately have "(\<rhd> \<cdot> \<bowtie>) \<cdot> PairV v\<^sub>1 (InlV v\<^sub>2) \<Down> InlV (PairV v\<^sub>2 v\<^sub>1)" by fastforce
+    moreover have "\<bowtie> \<bar> \<bowtie> \<cdot> InlV (PairV v\<^sub>2 v\<^sub>1) \<Down> InlV (PairV v\<^sub>1 v\<^sub>2)" by simp
+    ultimately show "(\<bowtie> \<bar> \<bowtie> \<cdot> \<rhd> \<cdot> \<bowtie>) \<cdot> PairV v\<^sub>1 (InlV v\<^sub>2) \<Down> InlV (PairV v\<^sub>1 v\<^sub>2)" by fastforce
   qed
 
 lemma ev_dstrr [simp]: "\<lhd> \<cdot> PairV v\<^sub>1 (InrV v\<^sub>2) \<Down> InrV (PairV v\<^sub>1 v\<^sub>2)"
   proof (unfold distribute_right_def)
-    show "\<bowtie> \<cdot> \<rhd> \<cdot> \<bowtie> \<cdot> PairV v\<^sub>1 (InrV v\<^sub>2) \<Down> InrV (PairV v\<^sub>1 v\<^sub>2)" by simp
+    have "\<bowtie> \<cdot> PairV v\<^sub>1 (InrV v\<^sub>2) \<Down> PairV (InrV v\<^sub>2) v\<^sub>1" by simp
+    moreover have "\<rhd> \<cdot> PairV (InrV v\<^sub>2) v\<^sub>1 \<Down> InrV (PairV v\<^sub>2 v\<^sub>1)" by simp
+    ultimately have "(\<rhd> \<cdot> \<bowtie>) \<cdot> PairV v\<^sub>1 (InrV v\<^sub>2) \<Down> InrV (PairV v\<^sub>2 v\<^sub>1)" by fastforce
+    moreover have "\<bowtie> \<bar> \<bowtie> \<cdot> InrV (PairV v\<^sub>2 v\<^sub>1) \<Down> InrV (PairV v\<^sub>1 v\<^sub>2)" by simp
+    ultimately show "(\<bowtie> \<bar> \<bowtie> \<cdot> \<rhd> \<cdot> \<bowtie>) \<cdot> PairV v\<^sub>1 (InrV v\<^sub>2) \<Down> InrV (PairV v\<^sub>1 v\<^sub>2)" by fastforce
   qed
 
 end
