@@ -2,11 +2,64 @@ theory CombinatorLaws
 imports BananasLanguage
 begin
 
-(* kludged in order to deal with mismatching domains - particularly \<epsilon>*)
+definition domain :: "expr \<Rightarrow> val set" where
+  "domain e = { v. \<exists>v'. e \<cdot> v \<Down> v' }"
+
+(* kludged in order to deal with mismatching domains - ie, polymorphic ones *)
 definition expression_equality :: "expr \<Rightarrow> expr \<Rightarrow> bool" (infix "\<simeq>" 50) where
-  "e\<^sub>1 \<simeq> e\<^sub>2 = ((\<forall>v v'. (v ~ e\<^sub>1 \<leadsto> v') \<longrightarrow> (v ~ e\<^sub>2 \<leadsto> v')) \<or> (\<forall>v v'. (v ~ e\<^sub>2 \<leadsto> v') \<longrightarrow> (v ~ e\<^sub>1 \<leadsto> v')))"
+  "e\<^sub>1 \<simeq> e\<^sub>2 = ((domain e\<^sub>1 \<subseteq> domain e\<^sub>2 \<and> (\<forall>v v'. (e\<^sub>1 \<cdot> v \<Down> v') \<longrightarrow> (e\<^sub>2 \<cdot> v \<Down> v'))) 
+            \<or> (domain e\<^sub>2 \<subseteq> domain e\<^sub>1 \<and> (\<forall>v v'. (e\<^sub>2 \<cdot> v \<Down> v') \<longrightarrow> (e\<^sub>1 \<cdot> v \<Down> v'))))"
+
+(* other combinators *)
+
+definition tuple_pair :: "expr \<Rightarrow> expr \<Rightarrow> expr" (infix "\<triangle>" 80) where
+  "e\<^sub>1 \<triangle> e\<^sub>2 = e\<^sub>1 \<parallel> e\<^sub>2 \<cdot> \<Theta>"
+
+definition case_strip :: "expr \<Rightarrow> expr \<Rightarrow> expr" (infix "\<nabla>" 80) where
+  "e\<^sub>l \<nabla> e\<^sub>r = \<Xi> \<cdot> e\<^sub>l \<bar> e\<^sub>r"
+
+lemma tc_tup_pair [simp]: "f\<^sub>1 \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> f\<^sub>2 \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>3 \<Longrightarrow> f\<^sub>1 \<triangle> f\<^sub>2 \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<otimes> t\<^sub>3"
+  proof (unfold tuple_pair_def)
+    assume "f\<^sub>1 \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2"
+       and "f\<^sub>2 \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>3"
+    hence "f\<^sub>1 \<parallel> f\<^sub>2 \<turnstile> t\<^sub>1 \<otimes> t\<^sub>1 \<rightarrow> t\<^sub>2 \<otimes> t\<^sub>3" by simp
+    thus "f\<^sub>1 \<parallel> f\<^sub>2 \<cdot> \<Theta> \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<otimes> t\<^sub>3" by simp
+  qed
+
+lemma tc_cse_str [simp]: "f\<^sub>l \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>3 \<Longrightarrow> f\<^sub>r \<turnstile> t\<^sub>2 \<rightarrow> t\<^sub>3 \<Longrightarrow> f\<^sub>l \<nabla> f\<^sub>r \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2 \<rightarrow> t\<^sub>3"
+  proof (unfold case_strip_def)
+    assume "f\<^sub>l \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>3"
+       and "f\<^sub>r \<turnstile> t\<^sub>2 \<rightarrow> t\<^sub>3"
+    hence "f\<^sub>l \<bar> f\<^sub>r \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2 \<rightarrow> t\<^sub>3 \<oplus> t\<^sub>3" by simp
+    moreover have "\<Xi> \<turnstile> t\<^sub>3 \<oplus> t\<^sub>3 \<rightarrow> t\<^sub>3" by simp
+    ultimately show "\<Xi> \<cdot> f\<^sub>l \<bar> f\<^sub>r \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2 \<rightarrow> t\<^sub>3" by (metis tc_comp)
+  qed
+
+lemma ev_tup_pair [simp]: "f\<^sub>1 \<cdot> v \<Down> v\<^sub>1 \<Longrightarrow> f\<^sub>2 \<cdot> v \<Down> v\<^sub>2 \<Longrightarrow> f\<^sub>1 \<triangle> f\<^sub>2 \<cdot> v \<Down> PairV v\<^sub>1 v\<^sub>2"
+  proof (unfold tuple_pair_def)
+    assume "f\<^sub>1 \<cdot> v \<Down> v\<^sub>1"
+       and "f\<^sub>2 \<cdot> v \<Down> v\<^sub>2"
+    moreover have "\<Theta> \<cdot> v \<Down> PairV v v" by simp
+    ultimately show "(f\<^sub>1 \<parallel> f\<^sub>2 \<cdot> \<Theta>) \<cdot> v \<Down> PairV v\<^sub>1 v\<^sub>2" by fastforce
+  qed
+
+lemma ev_cse_str_l [simp]: "f\<^sub>l \<cdot> v \<Down> v' \<Longrightarrow> f\<^sub>l \<nabla> f\<^sub>r \<cdot> InlV v \<Down> v'"
+  proof (unfold case_strip_def)
+    assume "f\<^sub>l \<cdot> v \<Down> v'"
+    hence "f\<^sub>l \<bar> f\<^sub>r \<cdot> InlV v \<Down> InlV v'" by simp
+    thus "(\<Xi> \<cdot> f\<^sub>l \<bar> f\<^sub>r) \<cdot> InlV v \<Down> v'" by fastforce
+  qed
+
+lemma ev_cse_str_r [simp]: "f\<^sub>r \<cdot> v \<Down> v' \<Longrightarrow> f\<^sub>l \<nabla> f\<^sub>r \<cdot> InrV v \<Down> v'"
+  proof (unfold case_strip_def)
+    assume "f\<^sub>r \<cdot> v \<Down> v'"
+    hence "f\<^sub>l \<bar> f\<^sub>r \<cdot> InrV v \<Down> InrV v'" by simp
+    thus "(\<Xi> \<cdot> f\<^sub>l \<bar> f\<^sub>r) \<cdot> InrV v \<Down> v'" by fastforce
+  qed
 
 (* helper lemmas *)
+
+(*
 
 lemma [elim]: "v ~ (e\<^sub>1 \<cdot> e\<^sub>2) \<cdot> e\<^sub>3 \<leadsto> v' \<Longrightarrow> v ~ e\<^sub>1 \<cdot> e\<^sub>2 \<cdot> e\<^sub>3 \<leadsto> v'"
   proof (induction v "(e\<^sub>1 \<cdot> e\<^sub>2) \<cdot> e\<^sub>3" v' rule: evaluate.induct)
@@ -140,6 +193,8 @@ lemma [elim]: "v ~ e\<^sub>1 \<nabla> e\<^sub>2 \<cdot> \<iota>\<^sub>r \<leadst
         ultimately show ?case by blast
       qed
   qed
+
+*)
 
 (* in terms of the actual expression equality *)
 
