@@ -2,20 +2,22 @@ theory Unification
 imports Main
 begin
 
-datatype 'a expression =
-  VAR 'a
-| CON string "'a expression list" 
+type_synonym var = nat
 
-fun vars :: "'a expression \<Rightarrow> 'a set" where
+datatype 'a expression =
+  VAR var
+| CON 'a "'a expression list" 
+
+fun vars :: "'a expression \<Rightarrow> var set" where
   "vars (VAR x) = {x}"
 | "vars (CON s es) = \<Union> (vars ` set es)"
 
-type_synonym 'a substitution = "'a \<Rightarrow> 'a expression"
+type_synonym 'a substitution = "var \<Rightarrow> 'a expression"
 
 definition empty_subst :: "'a substitution" where
   "empty_subst = VAR"
 
-primrec subst\<^sub>e :: "'a \<Rightarrow> 'a expression \<Rightarrow> 'a expression \<Rightarrow> 'a expression"  where
+primrec subst\<^sub>e :: "var \<Rightarrow> 'a expression \<Rightarrow> 'a expression \<Rightarrow> 'a expression"  where
   "subst\<^sub>e x e' (VAR y) = (if x = y then e' else VAR y)"
 | "subst\<^sub>e x e' (CON s es) = CON s (map (subst\<^sub>e x e') es)"
 
@@ -23,15 +25,15 @@ primrec subst\<^sub>e\<^sub>\<Theta> :: "'a substitution \<Rightarrow> 'a expres
   "subst\<^sub>e\<^sub>\<Theta> \<Theta> (VAR x) = \<Theta> x"
 | "subst\<^sub>e\<^sub>\<Theta> \<Theta> (CON s es) = CON s (map (subst\<^sub>e\<^sub>\<Theta> \<Theta>) es)"
 
-definition subst_extend :: "'a \<Rightarrow> 'a expression \<Rightarrow> 'a substitution \<Rightarrow> 'a substitution" where 
+definition subst_extend :: "var \<Rightarrow> 'a expression \<Rightarrow> 'a substitution \<Rightarrow> 'a substitution" where 
   "subst_extend x t \<Theta> \<equiv> (subst\<^sub>e x t o \<Theta>)(x := t)"
 
 type_synonym 'a equation = "'a expression \<times> 'a expression"
 
-primrec subst\<^sub>e\<^sub>q\<^sub>n :: "'a \<Rightarrow> 'a expression \<Rightarrow> 'a equation \<Rightarrow> 'a equation" where
+primrec subst\<^sub>e\<^sub>q\<^sub>n :: "var \<Rightarrow> 'a expression \<Rightarrow> 'a equation \<Rightarrow> 'a equation" where
   "subst\<^sub>e\<^sub>q\<^sub>n x e' (e\<^sub>1, e\<^sub>2) = (subst\<^sub>e x e' e\<^sub>1, subst\<^sub>e x e' e\<^sub>2)"
 
-primrec subst\<^sub>e\<^sub>q\<^sub>n\<^sub>s :: "'a \<Rightarrow> 'a expression \<Rightarrow> 'a equation list \<Rightarrow> 'a equation list" where
+primrec subst\<^sub>e\<^sub>q\<^sub>n\<^sub>s :: "var \<Rightarrow> 'a expression \<Rightarrow> 'a equation list \<Rightarrow> 'a equation list" where
   "subst\<^sub>e\<^sub>q\<^sub>n\<^sub>s x e' [] = []"
 | "subst\<^sub>e\<^sub>q\<^sub>n\<^sub>s x e' (eq # eqs) = subst\<^sub>e\<^sub>q\<^sub>n x e' eq # subst\<^sub>e\<^sub>q\<^sub>n\<^sub>s x e' eqs"
 
@@ -79,10 +81,10 @@ primrec cons :: "'a expression \<Rightarrow> nat"
 | "conss [] = 0"
 | "conss (e # es) = cons e + conss es"
 
-primrec vars\<^sub>e\<^sub>q\<^sub>n :: "'a equation \<Rightarrow> 'a set" where
+primrec vars\<^sub>e\<^sub>q\<^sub>n :: "'a equation \<Rightarrow> var set" where
   "vars\<^sub>e\<^sub>q\<^sub>n (e\<^sub>1, e\<^sub>2) = vars e\<^sub>1 \<union> vars e\<^sub>2"
 
-primrec vars\<^sub>e\<^sub>q\<^sub>n\<^sub>s :: "'a equation list \<Rightarrow> 'a set" where
+primrec vars\<^sub>e\<^sub>q\<^sub>n\<^sub>s :: "'a equation list \<Rightarrow> var set" where
   "vars\<^sub>e\<^sub>q\<^sub>n\<^sub>s [] = {}"
 | "vars\<^sub>e\<^sub>q\<^sub>n\<^sub>s (eq # eqs) = vars\<^sub>e\<^sub>q\<^sub>n eq \<union> vars\<^sub>e\<^sub>q\<^sub>n\<^sub>s eqs"
 
