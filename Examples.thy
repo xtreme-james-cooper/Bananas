@@ -21,7 +21,11 @@ primrec list_to_val :: "type \<Rightarrow> val list \<Rightarrow> val" where
   "list_to_val t [] = NilV t"
 | "list_to_val t (v # vs) = ConsV t v (list_to_val t vs)"
 
-lemma "exemplary_evaluation long_run (length\<^bsub>t\<^esub>, list_to_val t [a, b, c, d]) = Some (nat_to_val (Suc (Suc (Suc (Suc 0)))))"
+abbreviation long_run :: nat where
+  "long_run \<equiv> Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc 0)))))))))))"
+
+lemma "partial_evaluation long_run length\<^bsub>t\<^esub> (list_to_val t [a, b, c]) = 
+    Some (nat_to_val (Suc (Suc (Suc 0))))"
   by (simp add: length_expr_def)
 
 end

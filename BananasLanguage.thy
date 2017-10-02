@@ -259,8 +259,9 @@ theorem preservation: "e \<cdot> v \<leadsto> e' \<cdot> v' \<Longrightarrow> e 
     \<exists>t\<^sub>3. (e' \<turnstile> t\<^sub>3 \<rightarrow> t\<^sub>2) \<and> (v' \<turnstile> t\<^sub>3)"
   proof (induction e v e' v' arbitrary: t\<^sub>1 t\<^sub>2 rule: evaluate.induct)
   case (ev_pair1 f\<^sub>1 v\<^sub>1 f\<^sub>1' v\<^sub>1' f\<^sub>2 v\<^sub>2)
-    then obtain t\<^sub>1\<^sub>1 t\<^sub>1\<^sub>2 t\<^sub>2\<^sub>1 t\<^sub>2\<^sub>2 t\<^sub>1\<^sub>1' where T: "v\<^sub>1 \<turnstile> t\<^sub>1\<^sub>1 \<and> v\<^sub>2 \<turnstile> t\<^sub>1\<^sub>2 \<and> (f\<^sub>1 \<turnstile> t\<^sub>1\<^sub>1 \<rightarrow> t\<^sub>2\<^sub>1) \<and> (f\<^sub>2 \<turnstile> t\<^sub>1\<^sub>2 \<rightarrow> t\<^sub>2\<^sub>2) \<and> 
-      t\<^sub>1 = t\<^sub>1\<^sub>1 \<otimes> t\<^sub>1\<^sub>2 \<and> t\<^sub>2 = t\<^sub>2\<^sub>1 \<otimes> t\<^sub>2\<^sub>2 \<and> (f\<^sub>1' \<turnstile> t\<^sub>1\<^sub>1' \<rightarrow> t\<^sub>2\<^sub>1) \<and> v\<^sub>1' \<turnstile> t\<^sub>1\<^sub>1'" by fastforce
+    then obtain t\<^sub>1\<^sub>1 t\<^sub>1\<^sub>2 t\<^sub>2\<^sub>1 t\<^sub>2\<^sub>2 t\<^sub>1\<^sub>1' where T: "v\<^sub>1 \<turnstile> t\<^sub>1\<^sub>1 \<and> v\<^sub>2 \<turnstile> t\<^sub>1\<^sub>2 \<and> (f\<^sub>1 \<turnstile> t\<^sub>1\<^sub>1 \<rightarrow> t\<^sub>2\<^sub>1) \<and> 
+      (f\<^sub>2 \<turnstile> t\<^sub>1\<^sub>2 \<rightarrow> t\<^sub>2\<^sub>2) \<and> t\<^sub>1 = t\<^sub>1\<^sub>1 \<otimes> t\<^sub>1\<^sub>2 \<and> t\<^sub>2 = t\<^sub>2\<^sub>1 \<otimes> t\<^sub>2\<^sub>2 \<and> (f\<^sub>1' \<turnstile> t\<^sub>1\<^sub>1' \<rightarrow> t\<^sub>2\<^sub>1) \<and> v\<^sub>1' \<turnstile> t\<^sub>1\<^sub>1'" 
+        by fastforce
     hence "(f\<^sub>1' \<parallel> f\<^sub>2 \<turnstile> t\<^sub>1\<^sub>1' \<otimes> t\<^sub>1\<^sub>2 \<rightarrow> t\<^sub>2) \<and> PairV v\<^sub>1' v\<^sub>2 \<turnstile> t\<^sub>1\<^sub>1' \<otimes> t\<^sub>1\<^sub>2" by simp
     thus ?case by fastforce
   next case (ev_pair2 f\<^sub>2 v\<^sub>2 f\<^sub>2' v\<^sub>2' v\<^sub>1)
@@ -344,7 +345,7 @@ lemma [elim]: "f \<cdot> v \<Down> v' \<Longrightarrow> g \<cdot> v' \<Down> v''
 lemma [simp]: "e \<cdot> v \<leadsto> \<epsilon> \<cdot> v' \<Longrightarrow> e \<cdot> v \<Down> v'"
   by rule (simp, simp)
 
-lemma [elim]: "\<epsilon> \<cdot> v \<Down> v' \<Longrightarrow> v = v'"
+lemma eps_big_eval [elim]: "\<epsilon> \<cdot> v \<Down> v' \<Longrightarrow> v = v'"
   proof (induction \<epsilon> v v' rule: total_eval.induct)
   case (tev_step v e' v' v'')
     thus ?case by (induction \<epsilon> v e' v' rule: evaluate.induct)
@@ -365,6 +366,18 @@ lemma [simp]: "f\<^sub>1 \<cdot> v\<^sub>1 \<Down> v\<^sub>3 \<Longrightarrow> f
     moreover from tev_step have "f\<^sub>1' \<parallel> f\<^sub>2 \<cdot> PairV v\<^sub>1' v\<^sub>2 \<Down> PairV v\<^sub>3 v\<^sub>4" by simp
     ultimately show ?case by simp
   qed simp_all
+
+lemma pair_big_eval [elim]: "f\<^sub>1 \<parallel> f\<^sub>2 \<cdot> PairV v\<^sub>1 v\<^sub>2 \<Down> PairV v\<^sub>3 v\<^sub>4 \<Longrightarrow> (f\<^sub>1 \<cdot> v\<^sub>1 \<Down> v\<^sub>3) \<and> f\<^sub>2 \<cdot> v\<^sub>2 \<Down> v\<^sub>4"
+  proof (induction "f\<^sub>1 \<parallel> f\<^sub>2" "PairV v\<^sub>1 v\<^sub>2" "PairV v\<^sub>3 v\<^sub>4" 
+         arbitrary: f\<^sub>1 f\<^sub>2 v\<^sub>1 v\<^sub>2 rule: total_eval.induct)
+  case (tev_step e' v')
+    thus ?case
+      proof (induction "f\<^sub>1 \<parallel> f\<^sub>2" "PairV v\<^sub>1 v\<^sub>2" e' v' arbitrary: f\<^sub>1 f\<^sub>2 v\<^sub>1 v\<^sub>2 rule: evaluate.induct)
+      case (ev_pair3 v\<^sub>1 v\<^sub>2)
+        hence "PairV v\<^sub>1 v\<^sub>2 = PairV v\<^sub>3 v\<^sub>4" by (metis eps_big_eval)
+        thus ?case by simp
+      qed simp_all
+  qed
 
 lemma [simp]: "f\<^sub>l \<cdot> v \<Down> v' \<Longrightarrow> f\<^sub>l \<bar> f\<^sub>r \<cdot> InlV v \<Down> InlV v'"
   proof
