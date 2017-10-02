@@ -16,12 +16,12 @@ and funct =
 
 datatype expr = 
   Identity ("\<epsilon>") | Const val ("\<kappa>") | Comp expr expr (infixr "\<cdot>" 65)
-| Proj1 ("\<pi>\<^sub>1") | Proj2 ("\<pi>\<^sub>2") | Duplicate ("\<Theta>") | Pairwise expr expr (infix "\<parallel>" 80)
-| Injl ("\<iota>\<^sub>l") | Injr ("\<iota>\<^sub>r") | Strip ("\<Xi>") |  Case expr expr (infix "\<bar>" 80)
+| Proj1 ("\<pi>\<^sub>1") | Proj2 ("\<pi>\<^sub>2") | Duplicate ("\<Theta>") | Pairwise expr expr (infixr "\<parallel>" 85)
+| Injl ("\<iota>\<^sub>l") | Injr ("\<iota>\<^sub>r") | Strip ("\<Xi>") |  Case expr expr (infixr "\<bar>" 80)
 | Distribute ("\<rhd>")
-| Apply ("$") | Arrow expr expr (infix "\<leftarrow>" 70)
-| Outj funct
-| Cata expr ("\<lparr> _ \<rparr>")
+| Apply ("$") | Arrow expr expr (infixl "\<leftarrow>" 70)
+| Inj funct ("\<succ>\<^bsub>_\<^esub>") | Outj funct ("\<prec>\<^bsub>_\<^esub>")
+| Cata expr funct ("\<lparr> _ \<rparr>\<^bsub>_\<^esub>") | Ana expr funct ("\<lbrakk> _ \<rbrakk>\<^bsub>_\<^esub>")
 and val = 
   UnitV
 | PairV val val 
@@ -53,8 +53,10 @@ inductive typecheck\<^sub>e :: "expr \<Rightarrow> type \<Rightarrow> type \<Rig
 | tc_dst [simp]: "\<rhd> \<turnstile> (t\<^sub>1 \<oplus> t\<^sub>2) \<otimes> t\<^sub>3 \<rightarrow> t\<^sub>1 \<otimes> t\<^sub>3 \<oplus> t\<^sub>2 \<otimes> t\<^sub>3"
 | tc_app [simp]: "$ \<turnstile> (t\<^sub>1 \<hookrightarrow> t\<^sub>2) \<otimes> t\<^sub>1 \<rightarrow> t\<^sub>2"
 | tc_arr [simp]: "f \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> g \<turnstile> t\<^sub>3 \<rightarrow> t\<^sub>4 \<Longrightarrow> g \<leftarrow> f \<turnstile> t\<^sub>2 \<hookrightarrow> t\<^sub>3 \<rightarrow> t\<^sub>1 \<hookrightarrow> t\<^sub>4"
-| tc_outj [simp]: "Outj F \<turnstile> \<mu> F \<rightarrow> \<mu> F \<star> F"
-| tc_cata [simp]: "f \<turnstile> t \<star> F \<rightarrow> t \<Longrightarrow> \<lparr> f \<rparr> \<turnstile> \<mu> F \<rightarrow> t"
+| tc_inj [simp]: "\<succ>\<^bsub>F\<^esub> \<turnstile> \<mu> F \<star> F \<rightarrow> \<mu> F"
+| tc_outj [simp]: "\<prec>\<^bsub>F\<^esub> \<turnstile> \<mu> F \<rightarrow> \<mu> F \<star> F"
+| tc_cata [simp]: "f \<turnstile> t \<star> F \<rightarrow> t \<Longrightarrow> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<turnstile> \<mu> F \<rightarrow> t"
+| tc_ana [simp]: "f \<turnstile> t \<rightarrow> t \<star> F \<Longrightarrow> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<turnstile> t \<rightarrow> \<mu> F"
 
 | tcv_unit [simp]: "UnitV \<turnstile> \<one>"
 | tcv_pair [simp]: "v\<^sub>1 \<turnstile> t\<^sub>1 \<Longrightarrow> v\<^sub>2 \<turnstile> t\<^sub>2 \<Longrightarrow> PairV v\<^sub>1 v\<^sub>2 \<turnstile> t\<^sub>1 \<otimes> t\<^sub>2"
@@ -77,8 +79,10 @@ inductive_cases [elim]: "f\<^sub>l \<bar> f\<^sub>r \<turnstile> t \<rightarrow>
 inductive_cases [elim]: "\<rhd> \<turnstile> t \<rightarrow> t'"
 inductive_cases [elim]: "$ \<turnstile> t \<rightarrow> t'"
 inductive_cases [elim]: "g \<leftarrow> f \<turnstile> t \<rightarrow> t'"
-inductive_cases [elim]: "Outj F \<turnstile> t \<rightarrow> t'"
-inductive_cases [elim]: "\<lparr> f \<rparr> \<turnstile> t \<rightarrow> t'"
+inductive_cases [elim]: "\<prec>\<^bsub>F\<^esub> \<turnstile> t \<rightarrow> t'"
+inductive_cases [elim]: "\<succ>\<^bsub>F\<^esub> \<turnstile> t \<rightarrow> t'"
+inductive_cases [elim]: "\<lparr> f \<rparr>\<^bsub>F\<^esub> \<turnstile> t \<rightarrow> t'"
+inductive_cases [elim]: "\<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<turnstile> t \<rightarrow> t'"
 
 inductive_cases [elim]: "UnitV \<turnstile> t"
 inductive_cases [elim]: "PairV v\<^sub>1 v\<^sub>2 \<turnstile> t"
@@ -115,8 +119,10 @@ inductive evaluate :: "expr \<Rightarrow> val \<Rightarrow> expr \<Rightarrow> v
 | ev_dstr [simp]: "\<rhd> \<cdot> PairV (InrV v\<^sub>1) v\<^sub>2 \<leadsto> \<epsilon> \<cdot> InrV (PairV v\<^sub>1 v\<^sub>2)"
 | ev_app [simp]: "$ \<cdot> PairV (FunV e) v \<leadsto> e \<cdot> v"
 | ev_arr [simp]: "g \<leftarrow> f \<cdot> FunV e \<leadsto> \<epsilon> \<cdot> FunV (g \<cdot> e \<cdot> f)"
-| ev_out [simp]: "Outj F \<cdot> InjV F v \<leadsto> \<epsilon> \<cdot> v"
-| ev_cata [simp]: "\<lparr> f \<rparr> \<cdot> InjV F v \<leadsto> (f \<cdot> \<lparr> f \<rparr> \<bullet> F) \<cdot> v"
+| ev_inj [simp]: "\<succ>\<^bsub>F\<^esub> \<cdot> v \<leadsto> \<epsilon> \<cdot> InjV F v"
+| ev_outj [simp]: "\<prec>\<^bsub>F\<^esub> \<cdot> InjV F v \<leadsto> \<epsilon> \<cdot> v"
+| ev_cata [simp]: "\<lparr> f \<rparr>\<^bsub>F\<^esub> \<cdot> v \<leadsto> (f \<cdot> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>F\<^esub>) \<cdot> v"
+| ev_ana [simp]: "\<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<cdot> v \<leadsto> (\<succ>\<^bsub>F\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<cdot> f) \<cdot> v"
 
 (* safety *)
 
@@ -231,13 +237,18 @@ theorem progress: "e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrighta
     then obtain e where "v = FunV e" using canonical_arrow by blast
     moreover hence "g \<leftarrow> f \<cdot> FunV e \<leadsto> \<epsilon> \<cdot> FunV (g \<cdot> e \<cdot> f)" by simp
     ultimately show ?case by fastforce
+  next case (tc_inj F)
+    hence "\<succ>\<^bsub>F\<^esub> \<cdot> v \<leadsto> \<epsilon> \<cdot> InjV F v" by simp
+    thus ?case by fastforce
   next case (tc_outj F)
     then obtain v' where "v = InjV F v'" using canonical_mu by blast
-    moreover hence "Outj F \<cdot> v \<leadsto> \<epsilon> \<cdot> v'" by simp
+    moreover hence "\<prec>\<^bsub>F\<^esub> \<cdot> v \<leadsto> \<epsilon> \<cdot> v'" by simp
     ultimately show ?case by fastforce
   next case (tc_cata f t F)
-    then obtain v' where "v' \<turnstile> \<mu> F \<star> F \<and> v = InjV F v'" using canonical_mu by blast
-    hence "\<lparr> f \<rparr> \<cdot> v \<leadsto> (f \<cdot> \<lparr> f \<rparr> \<bullet> F) \<cdot> v'" by simp
+    hence "\<lparr> f \<rparr>\<^bsub>F\<^esub> \<cdot> v \<leadsto> (f \<cdot> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>F\<^esub>) \<cdot> v" by simp
+    thus ?case by fastforce
+  next case (tc_ana f t F)
+    hence "\<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<cdot> v \<leadsto> (\<succ>\<^bsub>F\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<cdot> f) \<cdot> v" by simp
     thus ?case by fastforce
   qed simp_all
 
@@ -294,9 +305,23 @@ theorem preservation: "e \<cdot> v \<leadsto> e' \<cdot> v' \<Longrightarrow> e 
       t\<^sub>1 = t\<^sub>1\<^sub>1 \<hookrightarrow> t\<^sub>1\<^sub>2 \<and> t\<^sub>2 = t\<^sub>2\<^sub>1 \<hookrightarrow> t\<^sub>2\<^sub>2" by fastforce
     hence "(\<epsilon> \<turnstile> t\<^sub>2\<^sub>1 \<hookrightarrow> t\<^sub>2\<^sub>2 \<rightarrow> t\<^sub>2) \<and> FunV (g \<cdot> e \<cdot> f) \<turnstile> t\<^sub>2\<^sub>1 \<hookrightarrow> t\<^sub>2\<^sub>2" by fastforce
     thus ?case by fastforce
-  next case (ev_cata f F v)
-    hence  "(f \<cdot> \<lparr> f \<rparr> \<bullet> F \<turnstile> \<mu> F \<star> F \<rightarrow> t\<^sub>2) \<and> v \<turnstile> \<mu> F \<star> F" by fastforce
+  next case (ev_inj F v)
+    hence "(\<epsilon> \<turnstile> t\<^sub>2 \<rightarrow> t\<^sub>2) \<and> InjV F v \<turnstile> t\<^sub>2" by fastforce
     thus ?case by fastforce
+  next case (ev_cata f F v)
+    hence V: "(f \<turnstile> t\<^sub>2 \<star> F \<rightarrow> t\<^sub>2) \<and> v \<turnstile> \<mu> F" by fastforce
+    moreover from ev_cata have "\<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F \<turnstile> \<mu> F \<star> F \<rightarrow> t\<^sub>2 \<star> F" by fastforce
+    moreover have "\<prec>\<^bsub>F\<^esub> \<turnstile> \<mu> F \<rightarrow> \<mu> F \<star> F" by simp
+    ultimately have "f \<cdot> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>F\<^esub> \<turnstile> \<mu> F \<rightarrow> t\<^sub>2" by (metis tc_comp)
+    with V have "(f \<cdot> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>F\<^esub> \<turnstile> \<mu> F \<rightarrow> t\<^sub>2) \<and> v \<turnstile> \<mu> F" by simp
+    thus ?case by fastforce
+  next case (ev_ana f F v)
+    hence V: "(f \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>1 \<star> F) \<and> v \<turnstile> t\<^sub>1 \<and> t\<^sub>2 = \<mu> F" by fastforce
+    hence "\<succ>\<^bsub>F\<^esub> \<turnstile> t\<^sub>2 \<star> F \<rightarrow> t\<^sub>2" by simp
+    moreover from ev_ana have "\<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<turnstile> t\<^sub>1 \<star> F \<rightarrow> t\<^sub>2 \<star> F" by simp
+    moreover from V have "f \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>1 \<star> F" by simp
+    ultimately have "\<succ>\<^bsub>F\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<cdot> f \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2" by simp
+    with V show ?case by fastforce
   qed force+
 
 (* big-step evaluation *) 
