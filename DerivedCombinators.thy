@@ -20,7 +20,7 @@ abbreviation Nat :: type where
   "Nat \<equiv> \<mu> NatF"
 
 abbreviation ZeroV :: val where
-  "ZeroV \<equiv> InjV NatF (InlV UnitV)"
+  "ZeroV \<equiv> InjV NatF TrueV" (* = InjV NatF (InlV UnitV), but otherwise the pun prevents collapsing *)
 
 abbreviation SuccV :: "val \<Rightarrow> val" where
   "SuccV v \<equiv> InjV NatF (InrV v)"
@@ -79,6 +79,12 @@ abbreviation swap :: expr ("\<bowtie>") where
 abbreviation distribute_right :: expr ("\<lhd>") where
   "\<lhd> \<equiv> \<bowtie> \<bar> \<bowtie> \<cdot> \<rhd> \<cdot> \<bowtie>"
 
+abbreviation if_expr :: "expr \<Rightarrow> expr \<Rightarrow> expr \<Rightarrow> expr" ("IF _ THEN _ ELSE _ FI") where
+  "IF p THEN e\<^sub>t ELSE e\<^sub>f FI \<equiv> e\<^sub>t \<nabla> e\<^sub>f \<cdot> (p?)" 
+
+abbreviation not_expr :: expr ("not") where
+  "not \<equiv> IF \<epsilon> THEN \<kappa> FalseV ELSE \<kappa> TrueV FI" 
+
 lemma [simp]: "f\<^sub>1 \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> f\<^sub>2 \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>3 \<Longrightarrow> f\<^sub>1 \<triangle> f\<^sub>2 \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<otimes> t\<^sub>3"
   proof - 
     assume "f\<^sub>1 \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2"
@@ -118,6 +124,19 @@ lemma [simp]: "\<lhd> \<turnstile> t\<^sub>3 \<otimes> (t\<^sub>1 \<oplus> t\<^s
     moreover have "\<bowtie> \<bar> \<bowtie> \<turnstile> t\<^sub>1 \<otimes> t\<^sub>3 \<oplus> t\<^sub>2 \<otimes> t\<^sub>3 \<rightarrow> t\<^sub>3 \<otimes> t\<^sub>1 \<oplus> t\<^sub>3 \<otimes> t\<^sub>2" by simp
     ultimately show "\<bowtie> \<bar> \<bowtie> \<cdot> \<rhd> \<cdot> \<bowtie> \<turnstile> t\<^sub>3 \<otimes> (t\<^sub>1 \<oplus> t\<^sub>2) \<rightarrow> t\<^sub>3 \<otimes> t\<^sub>1 \<oplus> t\<^sub>3 \<otimes> t\<^sub>2" by (metis tc_comp)
   qed
+
+lemma [simp]: "p \<turnstile> t\<^sub>1 \<rightarrow> Bool \<Longrightarrow> e\<^sub>t \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> e\<^sub>f \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> 
+    IF p THEN e\<^sub>t ELSE e\<^sub>f FI \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2"
+  proof -
+    assume "e\<^sub>t \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2"
+       and "e\<^sub>f \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2"
+    hence "e\<^sub>t \<nabla> e\<^sub>f \<turnstile> t\<^sub>1 \<oplus> t\<^sub>1 \<rightarrow> t\<^sub>2" by simp
+    moreover assume "p \<turnstile> t\<^sub>1 \<rightarrow> Bool"
+    ultimately show "IF p THEN e\<^sub>t ELSE e\<^sub>f FI \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2" by simp
+  qed
+
+lemma [simp]: "not \<turnstile> Bool \<rightarrow> Bool"
+  by simp
 
 lemma [simp]: "f\<^sub>1 \<cdot> v \<Down> v\<^sub>1 \<Longrightarrow> f\<^sub>2 \<cdot> v \<Down> v\<^sub>2 \<Longrightarrow> f\<^sub>1 \<triangle> f\<^sub>2 \<cdot> v \<Down> PairV v\<^sub>1 v\<^sub>2"
   proof -
@@ -185,5 +204,29 @@ lemma [simp]: "\<lhd> \<cdot> PairV v\<^sub>1 (InrV v\<^sub>2) \<Down> InrV (Pai
     moreover have "\<bowtie> \<bar> \<bowtie> \<cdot> InrV (PairV v\<^sub>2 v\<^sub>1) \<Down> InrV (PairV v\<^sub>1 v\<^sub>2)" by simp
     ultimately show "(\<bowtie> \<bar> \<bowtie> \<cdot> \<rhd> \<cdot> \<bowtie>) \<cdot> PairV v\<^sub>1 (InrV v\<^sub>2) \<Down> InrV (PairV v\<^sub>1 v\<^sub>2)" by fastforce
   qed
+
+lemma [simp]: "p \<cdot> v \<Down> TrueV \<Longrightarrow> e\<^sub>t \<cdot> v \<Down> v' \<Longrightarrow> IF p THEN e\<^sub>t ELSE e\<^sub>f FI \<cdot> v \<Down> v'"
+  proof -
+    assume "p \<cdot> v \<Down> TrueV" 
+    hence X: "p? \<cdot> v \<Down> InlV v" by simp
+    assume "e\<^sub>t \<cdot> v \<Down> v'"
+    hence "e\<^sub>t \<nabla> e\<^sub>f \<cdot> InlV v \<Down> v'" by simp
+    with X show "IF p THEN e\<^sub>t ELSE e\<^sub>f FI \<cdot> v \<Down> v'" by fastforce
+  qed
+
+lemma [simp]: "p \<cdot> v \<Down> FalseV \<Longrightarrow> e\<^sub>f \<cdot> v \<Down> v' \<Longrightarrow> IF p THEN e\<^sub>t ELSE e\<^sub>f FI \<cdot> v \<Down> v'"
+  proof -
+    assume "p \<cdot> v \<Down> FalseV" 
+    hence X: "p? \<cdot> v \<Down> InrV v" by simp
+    assume "e\<^sub>f \<cdot> v \<Down> v'"
+    hence "e\<^sub>t \<nabla> e\<^sub>f \<cdot> InrV v \<Down> v'" by simp
+    with X show "IF p THEN e\<^sub>t ELSE e\<^sub>f FI \<cdot> v \<Down> v'" by fastforce
+  qed
+
+lemma [simp]: "not \<cdot> TrueV \<Down> FalseV"
+  by simp
+
+lemma [simp]: "not \<cdot> FalseV \<Down> TrueV"
+  by simp
 
 end
