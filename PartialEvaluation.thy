@@ -74,17 +74,55 @@ theorem soundness: "partial_evaluation n e v = Some v' \<Longrightarrow> e \<cdo
 
 lemma pev_larger [elim]: "partial_evaluation n e v = Some v' \<Longrightarrow> n \<le> m \<Longrightarrow> 
     partial_evaluation m e v = Some v'"
-  proof (induction n e v arbitrary: m rule: partial_evaluation.induct)
-  case 3
-    thus ?case by simp
-  next case 8
-    thus ?case by simp
-  next case 22
-    thus ?case by simp
-  next case 29
-    thus ?case by simp
-  next case 31
-    thus ?case by simp
+  proof (induction n e v arbitrary: v' m rule: partial_evaluation.induct)
+  case (3 n f g v)
+    from 3(3) obtain v\<^sub>1 where V: "partial_evaluation n g v = Some v\<^sub>1 \<and> 
+      partial_evaluation n f v\<^sub>1 = Some v'" by (auto split: option.splits)
+    with 3 have "partial_evaluation m g v = Some v\<^sub>1" by blast
+    moreover from 3 V have "partial_evaluation m f v\<^sub>1 = Some v'" by blast
+    ultimately show ?case by simp
+  next case (8 n f\<^sub>1 f\<^sub>2 v\<^sub>1 v\<^sub>2)
+    moreover from 8(3) obtain v\<^sub>1' v\<^sub>2' where V: "partial_evaluation n f\<^sub>1 v\<^sub>1 = Some v\<^sub>1' \<and> 
+      partial_evaluation n f\<^sub>2 v\<^sub>2 = Some v\<^sub>2' \<and> v' = PairV v\<^sub>1' v\<^sub>2'" by (auto split: option.splits)
+    ultimately show ?case by simp
+  next case (16 n f\<^sub>l f\<^sub>r v)
+    moreover from 16(2) obtain v\<^sub>1 where "partial_evaluation n f\<^sub>l v = Some v\<^sub>1 \<and> 
+      partial_evaluation n \<iota>\<^sub>l v\<^sub>1 = Some v'" by (auto split: option.splits)
+    ultimately show ?case by simp
+  next case (17 n f\<^sub>l f\<^sub>r v)
+    moreover from 17(2) obtain v\<^sub>1 where "partial_evaluation n f\<^sub>r v = Some v\<^sub>1 \<and> 
+      partial_evaluation n \<iota>\<^sub>r v\<^sub>1 = Some v'" by (auto split: option.splits)
+    ultimately show ?case by simp
+  next case (22 n e v)
+    thus ?case
+      proof (induction m)
+      case (Suc m)
+        moreover from Suc(3) have "partial_evaluation n e v = Some v'" by simp
+        ultimately have "partial_evaluation m e v = Some v'" by blast
+        thus ?case by simp
+      qed simp_all
+  next case (29 n f F v)
+    thus ?case
+      proof (induction m)
+      case (Suc m)
+        from Suc(3) obtain v\<^sub>1 v\<^sub>2 where "partial_evaluation n \<prec>\<^bsub>F\<^esub> v = Some v\<^sub>1 \<and> 
+          partial_evaluation n (\<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F) v\<^sub>1 = Some v\<^sub>2 \<and> partial_evaluation n f v\<^sub>2 = Some v'" 
+            by (auto split: option.splits)
+        hence "partial_evaluation n (f \<cdot> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>F\<^esub>) v = Some v'" by simp
+        with Suc have "partial_evaluation m (f \<cdot> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>F\<^esub>) v = Some v'" by blast
+        thus ?case by simp
+      qed simp_all
+  next case (31 n f F v)
+    thus ?case
+      proof (induction m)
+      case (Suc m)
+        from Suc(3) obtain v\<^sub>1 v\<^sub>2 where "partial_evaluation n f v = Some v\<^sub>1 \<and> 
+          partial_evaluation n (\<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F) v\<^sub>1 = Some v\<^sub>2 \<and> partial_evaluation n \<succ>\<^bsub>F\<^esub> v\<^sub>2 = Some v'" 
+            by (auto split: option.splits)
+        hence "partial_evaluation n (\<succ>\<^bsub>F\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<cdot> f) v = Some v'" by simp
+        with Suc have "partial_evaluation m (\<succ>\<^bsub>F\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<cdot> f) v = Some v'" by blast
+        thus ?case by simp
+      qed simp_all
   qed simp_all
 
 theorem completeness: "e \<cdot> v \<Down> v' \<Longrightarrow> \<exists>n. partial_evaluation n e v = Some v'"
