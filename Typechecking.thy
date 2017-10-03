@@ -6,7 +6,8 @@ datatype flat_type = UNIT| TIMES | PLUS | ARROW | MU | IDF | CONSTF | TIMESF | P
 
 primrec flatten_type :: "type \<Rightarrow> flat_type expression"
     and flatten_funct :: "funct \<Rightarrow> flat_type expression" where
-  "flatten_type \<one> = CON UNIT []"
+  "flatten_type \<one> = CON UNIT []"  
+| "flatten_type (Poly n) = VAR n"
 | "flatten_type (t\<^sub>1 \<otimes> t\<^sub>2) = CON TIMES [flatten_type t\<^sub>1, flatten_type t\<^sub>2]"
 | "flatten_type (t\<^sub>1 \<oplus> t\<^sub>2) = CON PLUS [flatten_type t\<^sub>1, flatten_type t\<^sub>2]"
 | "flatten_type (t\<^sub>1 \<hookrightarrow> t\<^sub>2) = CON ARROW [flatten_type t\<^sub>1, flatten_type t\<^sub>2]"
@@ -25,7 +26,7 @@ primrec apply_functor_flat :: "flat_type expression \<Rightarrow> funct \<Righta
 
 fun inflate_type :: "flat_type expression \<Rightarrow> type option"
 and inflate_funct :: "flat_type expression \<Rightarrow> funct option" where
-  "inflate_type (VAR x) = None"
+  "inflate_type (VAR x) = Some (Poly x)"
 | "inflate_type (CON c []) = (if c = UNIT then Some \<one> else None)"
 | "inflate_type (CON c [F]) = 
     Option.bind (inflate_funct F) (\<lambda>F'. 
@@ -57,10 +58,10 @@ primrec assemble_constraints\<^sub>e :: "flat_type expression \<Rightarrow> flat
     and assemble_constraints\<^sub>v :: "flat_type expression \<Rightarrow> var \<Rightarrow> val \<Rightarrow> 
       flat_type equation list \<times> var" where
   "assemble_constraints\<^sub>e x y free \<epsilon> = ([(x, y)], free)"
-| "assemble_constraints\<^sub>e x y free (\<kappa> v) = assemble_constraints\<^sub>v y (Suc free) v"
+| "assemble_constraints\<^sub>e x y free (\<kappa> v) = assemble_constraints\<^sub>v y free v"
 | "assemble_constraints\<^sub>e x y free (f\<^sub>1 \<cdot> f\<^sub>2) = (
-    let (cs\<^sub>1, free') = assemble_constraints\<^sub>e x (VAR free) (Suc free) f\<^sub>1
-    in let (cs\<^sub>2, free'') = assemble_constraints\<^sub>e (VAR free) y free' f\<^sub>2
+    let (cs\<^sub>1, free') = assemble_constraints\<^sub>e (VAR free) y (Suc free) f\<^sub>1
+    in let (cs\<^sub>2, free'') = assemble_constraints\<^sub>e x (VAR free) free' f\<^sub>2
     in (cs\<^sub>1 @ cs\<^sub>2, free''))"
 | "assemble_constraints\<^sub>e x y free \<pi>\<^sub>1 = ([(x, CON TIMES [y, VAR free])], Suc free)"
 | "assemble_constraints\<^sub>e x y free \<pi>\<^sub>2 = ([(x, CON TIMES [VAR free, y])], Suc free)"
@@ -95,7 +96,7 @@ primrec assemble_constraints\<^sub>e :: "flat_type expression \<Rightarrow> flat
 | "assemble_constraints\<^sub>e x y free \<succ>\<^bsub>F\<^esub> = 
     ([(x, flatten_type (\<mu> F \<star> F)), (y, flatten_type (\<mu> F))], free)"
 | "assemble_constraints\<^sub>e x y free \<prec>\<^bsub>F\<^esub> = 
-    ([(x, flatten_type (\<mu> F)), (x, flatten_type (\<mu> F \<star> F))], free)"
+    ([(x, flatten_type (\<mu> F)), (y, flatten_type (\<mu> F \<star> F))], free)"
 | "assemble_constraints\<^sub>e x y free \<lparr> f \<rparr>\<^bsub>F\<^esub> = (
     let (cs, free') = assemble_constraints\<^sub>e (apply_functor_flat y F) y free f
     in ((x, CON MU [flatten_funct F]) # cs, free'))"
@@ -121,11 +122,11 @@ primrec assemble_constraints\<^sub>e :: "flat_type expression \<Rightarrow> flat
     let (cs, free') = assemble_constraints\<^sub>v (flatten_type (\<mu> F \<star> F)) free v
     in ((x, flatten_type (\<mu> F)) # cs, free'))"
 
-fun typecheck :: "expr \<Rightarrow> (type \<times> type) option" where
-  "typecheck e = 
+fun algorithmic_typecheck :: "expr \<Rightarrow> type option" where
+  "algorithmic_typecheck e = 
     Option.bind (unify' (fst (assemble_constraints\<^sub>e (VAR 0) (VAR 1) 2 e))) (\<lambda>\<phi>. 
-      Option.bind (inflate_type (\<phi> 0)) (\<lambda>t\<^sub>1. 
-        Option.bind (inflate_type (\<phi> 1)) (\<lambda>t\<^sub>2. 
-          Some (t\<^sub>1, t\<^sub>2))))"
+      Option.bind (inflate_type (subst\<^sub>\<Theta> \<phi> 0)) (\<lambda>t\<^sub>1. 
+        Option.bind (inflate_type (subst\<^sub>\<Theta> \<phi> 1)) (\<lambda>t\<^sub>2. 
+          Some (t\<^sub>1 \<hookrightarrow> t\<^sub>2))))"
 
 end

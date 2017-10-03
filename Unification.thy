@@ -12,21 +12,21 @@ fun vars :: "'a expression \<Rightarrow> var set" where
   "vars (VAR x) = {x}"
 | "vars (CON s es) = \<Union> (vars ` set es)"
 
-type_synonym 'a substitution = "var \<Rightarrow> 'a expression"
-
-definition empty_subst :: "'a substitution" where
-  "empty_subst = VAR"
+datatype 'a substitution = 
+  EMPTY
+| EXTEND var "'a expression" "'a substitution"
 
 primrec subst\<^sub>e :: "var \<Rightarrow> 'a expression \<Rightarrow> 'a expression \<Rightarrow> 'a expression"  where
   "subst\<^sub>e x e' (VAR y) = (if x = y then e' else VAR y)"
 | "subst\<^sub>e x e' (CON s es) = CON s (map (subst\<^sub>e x e') es)"
 
-primrec subst\<^sub>e\<^sub>\<Theta> :: "'a substitution \<Rightarrow> 'a expression \<Rightarrow> 'a expression" where
-  "subst\<^sub>e\<^sub>\<Theta> \<Theta> (VAR x) = \<Theta> x"
-| "subst\<^sub>e\<^sub>\<Theta> \<Theta> (CON s es) = CON s (map (subst\<^sub>e\<^sub>\<Theta> \<Theta>) es)"
+primrec subst\<^sub>\<Theta> :: "'a substitution \<Rightarrow> var \<Rightarrow> 'a expression" where
+  "subst\<^sub>\<Theta> EMPTY x = VAR x"
+| "subst\<^sub>\<Theta> (EXTEND y e \<Theta>) x = (if x = y then e else subst\<^sub>e y e (subst\<^sub>\<Theta> \<Theta> x))"
 
-definition subst_extend :: "var \<Rightarrow> 'a expression \<Rightarrow> 'a substitution \<Rightarrow> 'a substitution" where 
-  "subst_extend x t \<Theta> \<equiv> (subst\<^sub>e x t o \<Theta>)(x := t)"
+primrec subst\<^sub>e\<^sub>\<Theta> :: "'a substitution \<Rightarrow> 'a expression \<Rightarrow> 'a expression" where
+  "subst\<^sub>e\<^sub>\<Theta> \<Theta> (VAR x) = subst\<^sub>\<Theta> \<Theta> x"
+| "subst\<^sub>e\<^sub>\<Theta> \<Theta> (CON s es) = CON s (map (subst\<^sub>e\<^sub>\<Theta> \<Theta>) es)"
 
 type_synonym 'a equation = "'a expression \<times> 'a expression"
 
@@ -38,7 +38,7 @@ primrec subst\<^sub>e\<^sub>q\<^sub>n\<^sub>s :: "var \<Rightarrow> 'a expressio
 | "subst\<^sub>e\<^sub>q\<^sub>n\<^sub>s x e' (eq # eqs) = subst\<^sub>e\<^sub>q\<^sub>n x e' eq # subst\<^sub>e\<^sub>q\<^sub>n\<^sub>s x e' eqs"
 
 function unify' :: "'a equation list \<Rightarrow> 'a substitution option" where
-  "unify' [] = Some empty_subst"
+  "unify' [] = Some EMPTY"
 | "unify' ((CON s es\<^sub>1, CON t es\<^sub>2) # eqs) = (
     if s = t \<and> length es\<^sub>1 = length es\<^sub>2 then unify' (zip es\<^sub>1 es\<^sub>2 @ eqs) 
     else None)"
@@ -48,7 +48,7 @@ function unify' :: "'a equation list \<Rightarrow> 'a substitution option" where
     else if x \<in> vars t then None
     else case unify' (subst\<^sub>e\<^sub>q\<^sub>n\<^sub>s x t eqs) of
         None \<Rightarrow> None
-      | Some \<Theta> \<Rightarrow> Some (subst_extend x t \<Theta>))"
+      | Some \<Theta> \<Rightarrow> Some (EXTEND x (subst\<^sub>e\<^sub>\<Theta> \<Theta> t) \<Theta>))"
   by pat_completeness auto
 
 definition unify :: "'a expression \<Rightarrow> 'a expression \<Rightarrow> 'a substitution option" where

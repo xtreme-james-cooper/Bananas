@@ -4,6 +4,7 @@ begin
 
 datatype type = 
   Unit ("\<one>")
+| Poly nat
 | Prod type type (infixr "\<otimes>" 85)
 | Sum type type (infixr "\<oplus>" 80)
 | Func type type (infixr "\<hookrightarrow>" 70)
