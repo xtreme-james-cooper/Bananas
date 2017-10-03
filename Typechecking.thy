@@ -1,5 +1,5 @@
 theory Typechecking
-imports BananasLanguage Unification
+imports BananasExpression Unification
 begin
 
 datatype flat_type = UNIT| TIMES | PLUS | ARROW | MU | IDF | CONSTF | TIMESF | PLUSF

@@ -1,8 +1,8 @@
 theory PartialEvaluation
-imports BananasLanguage
+imports BananasExpression
 begin
 
-fun partial_evaluation :: "(name \<Rightarrow> expr) \<Rightarrow> nat \<Rightarrow> expr \<Rightarrow> val \<Rightarrow> val option" where
+fun partial_evaluation :: "(name \<rightharpoonup> expr) \<Rightarrow> nat \<Rightarrow> expr \<Rightarrow> val \<Rightarrow> val option" where
   "partial_evaluation \<Lambda> n \<epsilon> v = Some v"
 | "partial_evaluation \<Lambda> n (\<kappa> v\<^sub>1) v\<^sub>2 = Some v\<^sub>1"
 | "partial_evaluation \<Lambda> n (f \<cdot> g) v = (case partial_evaluation \<Lambda> n g v of 
@@ -42,7 +42,9 @@ fun partial_evaluation :: "(name \<Rightarrow> expr) \<Rightarrow> nat \<Rightar
 | "partial_evaluation \<Lambda> (Suc n) \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> v = partial_evaluation \<Lambda> n (\<succ>\<^bsub>F\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<cdot> f) v"
 | "partial_evaluation \<Lambda> 0 \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> _ = None"
 | "partial_evaluation \<Lambda> 0 (Var x) _ = None"
-| "partial_evaluation \<Lambda> (Suc n) (Var x) v = partial_evaluation \<Lambda> n (\<Lambda> x) v"
+| "partial_evaluation \<Lambda> (Suc n) (Var x) v = (case \<Lambda> x of 
+      Some e \<Rightarrow> partial_evaluation \<Lambda> n e v 
+    | None \<Rightarrow> None )"
 
 theorem soundness: "partial_evaluation \<Lambda> n e v = Some v' \<Longrightarrow> \<Lambda> \<turnstile> e \<cdot> v \<Down> v'"
   proof (induction \<Lambda> n e v arbitrary: v' rule: partial_evaluation.induct)
@@ -73,8 +75,10 @@ theorem soundness: "partial_evaluation \<Lambda> n e v = Some v' \<Longrightarro
     moreover have "\<Lambda> \<turnstile> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<cdot> v \<leadsto> (\<succ>\<^bsub>F\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<cdot> f) \<cdot> v" by simp
     ultimately show ?case by (metis tev_step)
   next case (34 \<Lambda> n x v)
-    hence "\<Lambda> \<turnstile> \<Lambda> x \<cdot> v \<Down> v'" by simp
-    moreover have "\<Lambda> \<turnstile> Var x \<cdot> v \<leadsto> \<Lambda> x \<cdot> v" by simp
+    moreover then obtain e where E: "\<Lambda> x = Some e \<and> partial_evaluation \<Lambda> n e v = Some v'" 
+      by (auto split: option.splits)
+    ultimately have "\<Lambda> \<turnstile> e \<cdot> v \<Down> v'" by simp
+    moreover from E have "\<Lambda> \<turnstile> Var x \<cdot> v \<leadsto> e \<cdot> v" by simp
     ultimately show ?case by (metis tev_step)
   qed auto
 
@@ -133,9 +137,10 @@ lemma pev_larger [elim]: "partial_evaluation \<Lambda> n e v = Some v' \<Longrig
     thus ?case
       proof (induction m)
       case (Suc m)
-        moreover from Suc(3) have "partial_evaluation \<Lambda> n (\<Lambda> x) v = Some v'" by simp
-        ultimately have "partial_evaluation \<Lambda> m (\<Lambda> x) v = Some v'" by blast
-        thus ?case by simp
+        from Suc(3) obtain e where "\<Lambda> x = Some e \<and> partial_evaluation \<Lambda> n e v = Some v'" 
+          by (auto split: option.splits)
+        moreover with Suc have "partial_evaluation \<Lambda> m e v = Some v'" by blast
+        ultimately show ?case by simp
       qed simp_all
   qed simp_all
 
@@ -186,9 +191,9 @@ theorem completeness: "\<Lambda> \<turnstile> e \<cdot> v \<Down> v' \<Longright
         then obtain n where "partial_evaluation \<Lambda> n (\<succ>\<^bsub>F\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<cdot> f) v = Some v''" by blast
         hence "partial_evaluation \<Lambda> (Suc n) \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> v = Some v''" by simp
         thus ?case by fastforce
-      next case (ev_var \<Lambda> x v)
-        then obtain n where "partial_evaluation \<Lambda> n (\<Lambda> x) v = Some v''" by blast
-        hence "partial_evaluation \<Lambda> (Suc n) (Var x) v = Some v''" by simp
+      next case (ev_var \<Lambda> x e v)
+        moreover then obtain n where "partial_evaluation \<Lambda> n e v = Some v''" by blast
+        ultimately have "partial_evaluation \<Lambda> (Suc n) (Var x) v = Some v''" by simp
         thus ?case by fastforce
       qed auto 
   qed simp_all
