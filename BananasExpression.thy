@@ -1,4 +1,4 @@
-theory BananasLanguage
+theory BananasExpression
 imports Main
 begin
 
