@@ -53,86 +53,88 @@ and inflate_funct :: "flat_type expression \<Rightarrow> funct option" where
         | _ \<Rightarrow> None))"
 | "inflate_funct (CON c _) = None"
 
-primrec assemble_constraints\<^sub>e :: "flat_type expression \<Rightarrow> flat_type expression \<Rightarrow> var \<Rightarrow> expr \<Rightarrow> 
-      flat_type equation list \<times> var" 
-    and assemble_constraints\<^sub>v :: "flat_type expression \<Rightarrow> var \<Rightarrow> val \<Rightarrow> 
+primrec assemble_constraints\<^sub>e :: "(name \<rightharpoonup> type \<times> type) \<Rightarrow> flat_type expression \<Rightarrow> 
+      flat_type expression \<Rightarrow> var \<Rightarrow> expr \<Rightarrow> flat_type equation list \<times> var" 
+    and assemble_constraints\<^sub>v :: "(name \<rightharpoonup> type \<times> type) \<Rightarrow> flat_type expression \<Rightarrow> var \<Rightarrow> val \<Rightarrow> 
       flat_type equation list \<times> var" where
-  "assemble_constraints\<^sub>e x y free \<epsilon> = ([(x, y)], free)"
-| "assemble_constraints\<^sub>e x y free (\<kappa> v) = assemble_constraints\<^sub>v y free v"
-| "assemble_constraints\<^sub>e x y free (f\<^sub>1 \<cdot> f\<^sub>2) = (
-    let (cs\<^sub>1, free') = assemble_constraints\<^sub>e (VAR free) y (Suc free) f\<^sub>1
-    in let (cs\<^sub>2, free'') = assemble_constraints\<^sub>e x (VAR free) free' f\<^sub>2
+  "assemble_constraints\<^sub>e \<Gamma> x y free \<epsilon> = ([(x, y)], free)"
+| "assemble_constraints\<^sub>e \<Gamma> x y free (\<kappa> v) = assemble_constraints\<^sub>v \<Gamma> y free v"
+| "assemble_constraints\<^sub>e \<Gamma> x y free (f\<^sub>1 \<cdot> f\<^sub>2) = (
+    let (cs\<^sub>1, free') = assemble_constraints\<^sub>e \<Gamma> (VAR free) y (Suc free) f\<^sub>1
+    in let (cs\<^sub>2, free'') = assemble_constraints\<^sub>e \<Gamma> x (VAR free) free' f\<^sub>2
     in (cs\<^sub>1 @ cs\<^sub>2, free''))"
-| "assemble_constraints\<^sub>e x y free \<pi>\<^sub>1 = ([(x, CON TIMES [y, VAR free])], Suc free)"
-| "assemble_constraints\<^sub>e x y free \<pi>\<^sub>2 = ([(x, CON TIMES [VAR free, y])], Suc free)"
-| "assemble_constraints\<^sub>e x y free \<Theta> = ([(y, CON TIMES [x, x])], free)"
-| "assemble_constraints\<^sub>e x y free (f\<^sub>1 \<parallel> f\<^sub>2) = (
+| "assemble_constraints\<^sub>e \<Gamma> x y free \<pi>\<^sub>1 = ([(x, CON TIMES [y, VAR free])], Suc free)"
+| "assemble_constraints\<^sub>e \<Gamma> x y free \<pi>\<^sub>2 = ([(x, CON TIMES [VAR free, y])], Suc free)"
+| "assemble_constraints\<^sub>e \<Gamma> x y free \<Theta> = ([(y, CON TIMES [x, x])], free)"
+| "assemble_constraints\<^sub>e \<Gamma> x y free (f\<^sub>1 \<parallel> f\<^sub>2) = (
     let a = VAR free in let b = VAR (Suc free) 
-    in let (cs\<^sub>1, free') = assemble_constraints\<^sub>e a b (Suc (Suc free)) f\<^sub>1
+    in let (cs\<^sub>1, free') = assemble_constraints\<^sub>e \<Gamma> a b (Suc (Suc free)) f\<^sub>1
     in let c = VAR free' in let d = VAR (Suc free') 
-    in let (cs\<^sub>2, free'') = assemble_constraints\<^sub>e c d (Suc (Suc free')) f\<^sub>2
+    in let (cs\<^sub>2, free'') = assemble_constraints\<^sub>e \<Gamma> c d (Suc (Suc free')) f\<^sub>2
     in ((x, CON TIMES [a, c]) # (y, CON TIMES [b, d]) # cs\<^sub>1 @ cs\<^sub>2, free''))"
-| "assemble_constraints\<^sub>e x y free \<iota>\<^sub>l = ([(y, CON PLUS [x, VAR free])], Suc free)"
-| "assemble_constraints\<^sub>e x y free \<iota>\<^sub>r = ([(y, CON PLUS [VAR free, x])], Suc free)"
-| "assemble_constraints\<^sub>e x y free \<Xi> = ([(x, CON PLUS [y, y])], free)"
-| "assemble_constraints\<^sub>e x y free (f\<^sub>1 \<bar> f\<^sub>2) = (
+| "assemble_constraints\<^sub>e \<Gamma> x y free \<iota>\<^sub>l = ([(y, CON PLUS [x, VAR free])], Suc free)"
+| "assemble_constraints\<^sub>e \<Gamma> x y free \<iota>\<^sub>r = ([(y, CON PLUS [VAR free, x])], Suc free)"
+| "assemble_constraints\<^sub>e \<Gamma> x y free \<Xi> = ([(x, CON PLUS [y, y])], free)"
+| "assemble_constraints\<^sub>e \<Gamma> x y free (f\<^sub>1 \<bar> f\<^sub>2) = (
     let a = VAR free in let b = VAR (Suc free) 
-    in let (cs\<^sub>1, free') = assemble_constraints\<^sub>e a b (Suc (Suc free)) f\<^sub>1
+    in let (cs\<^sub>1, free') = assemble_constraints\<^sub>e \<Gamma> a b (Suc (Suc free)) f\<^sub>1
     in let c = VAR free' in let d = VAR (Suc free') 
-    in let (cs\<^sub>2, free'') = assemble_constraints\<^sub>e c d (Suc (Suc free')) f\<^sub>2
+    in let (cs\<^sub>2, free'') = assemble_constraints\<^sub>e \<Gamma> c d (Suc (Suc free')) f\<^sub>2
     in ((x, CON PLUS [a, c]) # (y, CON PLUS [b, d]) # cs\<^sub>1 @ cs\<^sub>2, free''))"
-| "assemble_constraints\<^sub>e x y free \<rhd> = (
+| "assemble_constraints\<^sub>e \<Gamma> x y free \<rhd> = (
     let a = VAR free in let b = VAR (Suc free) in let c = VAR (Suc (Suc free))
     in ([(x, CON TIMES [CON PLUS [a, b], c]), (y, CON PLUS [CON TIMES [a, c], CON TIMES [b, c]])], 
         Suc (Suc (Suc free))))"
-| "assemble_constraints\<^sub>e x y free $ = 
+| "assemble_constraints\<^sub>e \<Gamma> x y free $ = 
     ([(x, CON TIMES [CON ARROW [VAR free, y], VAR free])], Suc free)"
-| "assemble_constraints\<^sub>e x y free (f\<^sub>1 \<leftarrow> f\<^sub>2) = (
+| "assemble_constraints\<^sub>e \<Gamma> x y free (f\<^sub>1 \<leftarrow> f\<^sub>2) = (
     let a = VAR free in let b = VAR (Suc free) 
-    in let (cs\<^sub>1, free') = assemble_constraints\<^sub>e a b (Suc (Suc free)) f\<^sub>1
+    in let (cs\<^sub>1, free') = assemble_constraints\<^sub>e \<Gamma> a b (Suc (Suc free)) f\<^sub>1
     in let c = VAR free' in let d = VAR (Suc free') 
-    in let (cs\<^sub>2, free'') = assemble_constraints\<^sub>e c d (Suc (Suc free')) f\<^sub>2
+    in let (cs\<^sub>2, free'') = assemble_constraints\<^sub>e \<Gamma> c d (Suc (Suc free')) f\<^sub>2
     in ((x, CON ARROW [b, c]) # (y, CON PLUS [a, d]) # cs\<^sub>1 @ cs\<^sub>2, free''))"
-| "assemble_constraints\<^sub>e x y free \<succ>\<^bsub>F\<^esub> = 
+| "assemble_constraints\<^sub>e \<Gamma> x y free \<succ>\<^bsub>F\<^esub> = 
     ([(x, flatten_type (\<mu> F \<star> F)), (y, flatten_type (\<mu> F))], free)"
-| "assemble_constraints\<^sub>e x y free \<prec>\<^bsub>F\<^esub> = 
+| "assemble_constraints\<^sub>e \<Gamma> x y free \<prec>\<^bsub>F\<^esub> = 
     ([(x, flatten_type (\<mu> F)), (y, flatten_type (\<mu> F \<star> F))], free)"
-| "assemble_constraints\<^sub>e x y free \<lparr> f \<rparr>\<^bsub>F\<^esub> = (
-    let (cs, free') = assemble_constraints\<^sub>e (apply_functor_flat y F) y free f
+| "assemble_constraints\<^sub>e \<Gamma> x y free \<lparr> f \<rparr>\<^bsub>F\<^esub> = (
+    let (cs, free') = assemble_constraints\<^sub>e \<Gamma> (apply_functor_flat y F) y free f
     in ((x, CON MU [flatten_funct F]) # cs, free'))"
-| "assemble_constraints\<^sub>e x y free \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> = (
-    let (cs, free') = assemble_constraints\<^sub>e x (apply_functor_flat x F) free f
+| "assemble_constraints\<^sub>e \<Gamma> x y free \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> = (
+    let (cs, free') = assemble_constraints\<^sub>e \<Gamma> x (apply_functor_flat x F) free f
     in ((y, CON MU [flatten_funct F]) # cs, free'))"
-| "assemble_constraints\<^sub>e x y free (Var z) = ([(CON UNIT [], CON ARROW [])], free)"
+| "assemble_constraints\<^sub>e \<Gamma> x y free (Var z) = (case \<Gamma> z of 
+      None \<Rightarrow> ([(CON UNIT [], CON IDF [])], free) 
+    | Some (t\<^sub>1, t\<^sub>2) \<Rightarrow> ([(x, flatten_type t\<^sub>1), (y, flatten_type t\<^sub>2)], free))"
 
-| "assemble_constraints\<^sub>v x free UnitV = ([(x, CON UNIT [])], free)"
-| "assemble_constraints\<^sub>v x free (PairV v\<^sub>1 v\<^sub>2) = (
-    let (cs\<^sub>1, free') = assemble_constraints\<^sub>v (VAR free) (Suc free) v\<^sub>1
-    in let (cs\<^sub>2, free'') = assemble_constraints\<^sub>v (VAR free') (Suc free') v\<^sub>2
+| "assemble_constraints\<^sub>v \<Gamma> x free UnitV = ([(x, CON UNIT [])], free)"
+| "assemble_constraints\<^sub>v \<Gamma> x free (PairV v\<^sub>1 v\<^sub>2) = (
+    let (cs\<^sub>1, free') = assemble_constraints\<^sub>v \<Gamma> (VAR free) (Suc free) v\<^sub>1
+    in let (cs\<^sub>2, free'') = assemble_constraints\<^sub>v \<Gamma> (VAR free') (Suc free') v\<^sub>2
     in ((x, CON TIMES [VAR free, VAR free']) # cs\<^sub>1 @ cs\<^sub>2, free''))"
-| "assemble_constraints\<^sub>v x free (InlV v) = (
-    let (cs, free') = assemble_constraints\<^sub>v (VAR free) (Suc free) v
+| "assemble_constraints\<^sub>v \<Gamma> x free (InlV v) = (
+    let (cs, free') = assemble_constraints\<^sub>v \<Gamma> (VAR free) (Suc free) v
     in ((x, CON PLUS [VAR free, VAR free']) # cs, Suc free'))"
-| "assemble_constraints\<^sub>v x free (InrV v) = (
-    let (cs, free') = assemble_constraints\<^sub>v (VAR free) (Suc free) v
+| "assemble_constraints\<^sub>v \<Gamma> x free (InrV v) = (
+    let (cs, free') = assemble_constraints\<^sub>v \<Gamma> (VAR free) (Suc free) v
     in ((x, CON PLUS [VAR free', VAR free]) # cs, Suc free'))"
-| "assemble_constraints\<^sub>v x free (FunV f) = (
-    let (cs, free') = assemble_constraints\<^sub>e (VAR free) (VAR (Suc free)) (Suc (Suc free)) f
+| "assemble_constraints\<^sub>v \<Gamma> x free (FunV f) = (
+    let (cs, free') = assemble_constraints\<^sub>e \<Gamma> (VAR free) (VAR (Suc free)) (Suc (Suc free)) f
     in ((x, CON ARROW [VAR free, VAR (Suc free)]) # cs, free'))"
-| "assemble_constraints\<^sub>v x free (InjV F v) = (
-    let (cs, free') = assemble_constraints\<^sub>v (flatten_type (\<mu> F \<star> F)) free v
+| "assemble_constraints\<^sub>v \<Gamma> x free (InjV F v) = (
+    let (cs, free') = assemble_constraints\<^sub>v \<Gamma> (flatten_type (\<mu> F \<star> F)) free v
     in ((x, flatten_type (\<mu> F)) # cs, free'))"
 
 fun algorithmic_typecheck\<^sub>e :: "(name \<rightharpoonup> type \<times> type) \<Rightarrow> expr \<Rightarrow> (type \<times> type) option" where
   "algorithmic_typecheck\<^sub>e \<Gamma> e = 
-    Option.bind (unify' (fst (assemble_constraints\<^sub>e (VAR 0) (VAR 1) 2 e))) (\<lambda>\<phi>. 
+    Option.bind (unify' (fst (assemble_constraints\<^sub>e \<Gamma> (VAR 0) (VAR 1) 2 e))) (\<lambda>\<phi>. 
       Option.bind (inflate_type (subst\<^sub>\<Theta> \<phi> 0)) (\<lambda>t\<^sub>1. 
         Option.bind (inflate_type (subst\<^sub>\<Theta> \<phi> 1)) (\<lambda>t\<^sub>2. 
           Some (t\<^sub>1, t\<^sub>2))))"
 
 fun algorithmic_typecheck\<^sub>v :: "(name \<rightharpoonup> type \<times> type) \<Rightarrow> val \<Rightarrow> type option" where
   "algorithmic_typecheck\<^sub>v \<Gamma> v = 
-    Option.bind (unify' (fst (assemble_constraints\<^sub>v (VAR 0) 1 v))) (\<lambda>\<phi>. 
+    Option.bind (unify' (fst (assemble_constraints\<^sub>v \<Gamma> (VAR 0) 1 v))) (\<lambda>\<phi>. 
       inflate_type (subst\<^sub>\<Theta> \<phi> 0))"
 
 primrec algorithmic_typecheck\<^sub>d :: "(name \<rightharpoonup> type \<times> type) \<Rightarrow> decl \<Rightarrow> (name \<rightharpoonup> type \<times> type) option" 

@@ -2,7 +2,7 @@ theory BananasExpression
 imports Main
 begin
 
-typedecl name
+type_synonym name = string
 
 datatype type = 
   Unit ("\<one>")
