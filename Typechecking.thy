@@ -103,6 +103,7 @@ primrec assemble_constraints\<^sub>e :: "flat_type expression \<Rightarrow> flat
 | "assemble_constraints\<^sub>e x y free \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> = (
     let (cs, free') = assemble_constraints\<^sub>e x (apply_functor_flat x F) free f
     in ((y, CON MU [flatten_funct F]) # cs, free'))"
+| "assemble_constraints\<^sub>e x y free (Var z) = ([(CON UNIT [], CON ARROW [])], free)"
 
 | "assemble_constraints\<^sub>v x free UnitV = ([(x, CON UNIT [])], free)"
 | "assemble_constraints\<^sub>v x free (PairV v\<^sub>1 v\<^sub>2) = (

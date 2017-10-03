@@ -41,6 +41,8 @@ fun partial_evaluation :: "nat \<Rightarrow> expr \<Rightarrow> val \<Rightarrow
 | "partial_evaluation 0 \<lparr> f \<rparr>\<^bsub>F\<^esub> _ = None"
 | "partial_evaluation (Suc n) \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> v = partial_evaluation n (\<succ>\<^bsub>F\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<cdot> f) v"
 | "partial_evaluation 0 \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> _ = None"
+| "partial_evaluation 0 (Var x) _ = None"
+| "partial_evaluation (Suc n) (Var x) _ = None"
 
 theorem soundness: "partial_evaluation n e v = Some v' \<Longrightarrow> e \<cdot> v \<Down> v'"
   proof (induction n e v arbitrary: v' rule: partial_evaluation.induct)

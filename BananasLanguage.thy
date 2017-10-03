@@ -2,6 +2,8 @@ theory BananasLanguage
 imports Main
 begin
 
+typedecl name
+
 datatype type = 
   Unit ("\<one>")
 | Poly nat
@@ -23,6 +25,7 @@ datatype expr =
 | Apply ("$") | Arrow expr expr (infixl "\<leftarrow>" 70)
 | Inj funct ("\<succ>\<^bsub>_\<^esub>") | Outj funct ("\<prec>\<^bsub>_\<^esub>")
 | Cata expr funct ("\<lparr> _ \<rparr>\<^bsub>_\<^esub>") | Ana expr funct ("\<lbrakk> _ \<rbrakk>\<^bsub>_\<^esub>")
+| Var name
 and val = 
   UnitV
 | PairV val val 
@@ -38,59 +41,59 @@ fun apply_functor_type :: "type \<Rightarrow> funct \<Rightarrow> type" (infixl 
 | "t \<star> f\<^sub>1 \<Otimes> f\<^sub>2 = (t \<star> f\<^sub>1) \<otimes> (t \<star> f\<^sub>2)"
 | "t \<star> f\<^sub>1 \<Oplus> f\<^sub>2 = (t \<star> f\<^sub>1) \<oplus> (t \<star> f\<^sub>2)"
 
-inductive typecheck\<^sub>e :: "expr \<Rightarrow> type \<Rightarrow> type \<Rightarrow> bool" (infix "\<turnstile> _ \<rightarrow>" 60)
-      and typecheck\<^sub>v :: "val \<Rightarrow> type \<Rightarrow> bool" (infix "\<turnstile>" 60) where
-  tc_id [simp]: "\<epsilon> \<turnstile> t \<rightarrow> t"
-| tc_con [simp]: "v \<turnstile> t\<^sub>2 \<Longrightarrow> \<kappa> v \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2"
-| tc_comp [simp]: "f \<turnstile> t\<^sub>2 \<rightarrow> t\<^sub>3 \<Longrightarrow> g \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> f \<cdot> g \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>3"
-| tc_fst [simp]: "\<pi>\<^sub>1 \<turnstile> t\<^sub>1 \<otimes> t\<^sub>2 \<rightarrow> t\<^sub>1"
-| tc_snd [simp]: "\<pi>\<^sub>2 \<turnstile> t\<^sub>1 \<otimes> t\<^sub>2 \<rightarrow> t\<^sub>2"
-| tc_tup [simp]: "\<Theta> \<turnstile> t \<rightarrow> t \<otimes> t"
-| tc_pair [simp]: "f\<^sub>1 \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> f\<^sub>2 \<turnstile> t\<^sub>3 \<rightarrow> t\<^sub>4 \<Longrightarrow> f\<^sub>1 \<parallel> f\<^sub>2 \<turnstile> t\<^sub>1 \<otimes> t\<^sub>3 \<rightarrow> t\<^sub>2 \<otimes> t\<^sub>4"
-| tc_inl [simp]: "\<iota>\<^sub>l \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>1 \<oplus> t\<^sub>2"
-| tc_inr [simp]: "\<iota>\<^sub>r \<turnstile> t\<^sub>2 \<rightarrow> t\<^sub>1 \<oplus> t\<^sub>2"
-| tc_str [simp]: "\<Xi> \<turnstile> t\<^sub>1 \<oplus> t\<^sub>1 \<rightarrow> t\<^sub>1"
-| tc_case [simp]: "f\<^sub>l \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>3 \<Longrightarrow> f\<^sub>r \<turnstile> t\<^sub>2 \<rightarrow> t\<^sub>4 \<Longrightarrow> f\<^sub>l \<bar> f\<^sub>r \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2 \<rightarrow> t\<^sub>3 \<oplus> t\<^sub>4"
-| tc_dst [simp]: "\<rhd> \<turnstile> (t\<^sub>1 \<oplus> t\<^sub>2) \<otimes> t\<^sub>3 \<rightarrow> t\<^sub>1 \<otimes> t\<^sub>3 \<oplus> t\<^sub>2 \<otimes> t\<^sub>3"
-| tc_app [simp]: "$ \<turnstile> (t\<^sub>1 \<hookrightarrow> t\<^sub>2) \<otimes> t\<^sub>1 \<rightarrow> t\<^sub>2"
-| tc_arr [simp]: "f \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> g \<turnstile> t\<^sub>3 \<rightarrow> t\<^sub>4 \<Longrightarrow> g \<leftarrow> f \<turnstile> t\<^sub>2 \<hookrightarrow> t\<^sub>3 \<rightarrow> t\<^sub>1 \<hookrightarrow> t\<^sub>4"
-| tc_inj [simp]: "\<succ>\<^bsub>F\<^esub> \<turnstile> \<mu> F \<star> F \<rightarrow> \<mu> F"
-| tc_outj [simp]: "\<prec>\<^bsub>F\<^esub> \<turnstile> \<mu> F \<rightarrow> \<mu> F \<star> F"
-| tc_cata [simp]: "f \<turnstile> t \<star> F \<rightarrow> t \<Longrightarrow> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<turnstile> \<mu> F \<rightarrow> t"
-| tc_ana [simp]: "f \<turnstile> t \<rightarrow> t \<star> F \<Longrightarrow> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<turnstile> t \<rightarrow> \<mu> F"
+inductive typecheck\<^sub>e :: "(name \<Rightarrow> type) \<Rightarrow> expr \<Rightarrow> type \<Rightarrow> type \<Rightarrow> bool" (infix "\<turnstile> _ : _ \<rightarrow>" 60)
+      and typecheck\<^sub>v :: "(name \<Rightarrow> type) \<Rightarrow> val \<Rightarrow> type \<Rightarrow> bool" (infix "\<turnstile> _ :" 60) where
+  tc_id [simp]: "\<Gamma> \<turnstile> \<epsilon> : t \<rightarrow> t"
+| tc_con [simp]: "\<Gamma> \<turnstile> v : t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> \<kappa> v : t\<^sub>1 \<rightarrow> t\<^sub>2"
+| tc_comp [simp]: "\<Gamma> \<turnstile> f : t\<^sub>2 \<rightarrow> t\<^sub>3 \<Longrightarrow> \<Gamma> \<turnstile> g : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> f \<cdot> g : t\<^sub>1 \<rightarrow> t\<^sub>3"
+| tc_fst [simp]: "\<Gamma> \<turnstile> \<pi>\<^sub>1 : t\<^sub>1 \<otimes> t\<^sub>2 \<rightarrow> t\<^sub>1"
+| tc_snd [simp]: "\<Gamma> \<turnstile> \<pi>\<^sub>2 : t\<^sub>1 \<otimes> t\<^sub>2 \<rightarrow> t\<^sub>2"
+| tc_tup [simp]: "\<Gamma> \<turnstile> \<Theta> : t \<rightarrow> t \<otimes> t"
+| tc_pair [simp]: "\<Gamma> \<turnstile> f\<^sub>1 : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> f\<^sub>2 : t\<^sub>3 \<rightarrow> t\<^sub>4 \<Longrightarrow> \<Gamma> \<turnstile> f\<^sub>1 \<parallel> f\<^sub>2 : t\<^sub>1 \<otimes> t\<^sub>3 \<rightarrow> t\<^sub>2 \<otimes> t\<^sub>4"
+| tc_inl [simp]: "\<Gamma> \<turnstile> \<iota>\<^sub>l : t\<^sub>1 \<rightarrow> t\<^sub>1 \<oplus> t\<^sub>2"
+| tc_inr [simp]: "\<Gamma> \<turnstile> \<iota>\<^sub>r : t\<^sub>2 \<rightarrow> t\<^sub>1 \<oplus> t\<^sub>2"
+| tc_str [simp]: "\<Gamma> \<turnstile> \<Xi> : t\<^sub>1 \<oplus> t\<^sub>1 \<rightarrow> t\<^sub>1"
+| tc_case [simp]: "\<Gamma> \<turnstile> f\<^sub>l : t\<^sub>1 \<rightarrow> t\<^sub>3 \<Longrightarrow> \<Gamma> \<turnstile> f\<^sub>r : t\<^sub>2 \<rightarrow> t\<^sub>4 \<Longrightarrow> \<Gamma> \<turnstile> f\<^sub>l \<bar> f\<^sub>r : t\<^sub>1 \<oplus> t\<^sub>2 \<rightarrow> t\<^sub>3 \<oplus> t\<^sub>4"
+| tc_dst [simp]: "\<Gamma> \<turnstile> \<rhd> : (t\<^sub>1 \<oplus> t\<^sub>2) \<otimes> t\<^sub>3 \<rightarrow> t\<^sub>1 \<otimes> t\<^sub>3 \<oplus> t\<^sub>2 \<otimes> t\<^sub>3"
+| tc_app [simp]: "\<Gamma> \<turnstile> $ : (t\<^sub>1 \<hookrightarrow> t\<^sub>2) \<otimes> t\<^sub>1 \<rightarrow> t\<^sub>2"
+| tc_arr [simp]: "\<Gamma> \<turnstile> f : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> g : t\<^sub>3 \<rightarrow> t\<^sub>4 \<Longrightarrow> \<Gamma> \<turnstile> g \<leftarrow> f : t\<^sub>2 \<hookrightarrow> t\<^sub>3 \<rightarrow> t\<^sub>1 \<hookrightarrow> t\<^sub>4"
+| tc_inj [simp]: "\<Gamma> \<turnstile> \<succ>\<^bsub>F\<^esub> : \<mu> F \<star> F \<rightarrow> \<mu> F"
+| tc_outj [simp]: "\<Gamma> \<turnstile> \<prec>\<^bsub>F\<^esub> : \<mu> F \<rightarrow> \<mu> F \<star> F"
+| tc_cata [simp]: "\<Gamma> \<turnstile> f : t \<star> F \<rightarrow> t \<Longrightarrow> \<Gamma> \<turnstile> \<lparr> f \<rparr>\<^bsub>F\<^esub> : \<mu> F \<rightarrow> t"
+| tc_ana [simp]: "\<Gamma> \<turnstile> f : t \<rightarrow> t \<star> F \<Longrightarrow> \<Gamma> \<turnstile> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> : t \<rightarrow> \<mu> F"
 
-| tcv_unit [simp]: "UnitV \<turnstile> \<one>"
-| tcv_pair [simp]: "v\<^sub>1 \<turnstile> t\<^sub>1 \<Longrightarrow> v\<^sub>2 \<turnstile> t\<^sub>2 \<Longrightarrow> PairV v\<^sub>1 v\<^sub>2 \<turnstile> t\<^sub>1 \<otimes> t\<^sub>2"
-| tcv_inl [simp]: "v \<turnstile> t\<^sub>1 \<Longrightarrow> InlV v \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2"
-| tcv_inr [simp]: "v \<turnstile> t\<^sub>2 \<Longrightarrow> InrV v \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2"
-| tcv_fun [simp]: "e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> FunV e \<turnstile> t\<^sub>1 \<hookrightarrow> t\<^sub>2"
-| tcv_inj [simp]: "v \<turnstile> \<mu> F \<star> F \<Longrightarrow> InjV F v \<turnstile> \<mu> F"
+| tcv_unit [simp]: "\<Gamma> \<turnstile> UnitV : \<one>"
+| tcv_pair [simp]: "\<Gamma> \<turnstile> v\<^sub>1 : t\<^sub>1 \<Longrightarrow> \<Gamma> \<turnstile> v\<^sub>2 : t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> PairV v\<^sub>1 v\<^sub>2 : t\<^sub>1 \<otimes> t\<^sub>2"
+| tcv_inl [simp]: "\<Gamma> \<turnstile> v : t\<^sub>1 \<Longrightarrow> \<Gamma> \<turnstile> InlV v : t\<^sub>1 \<oplus> t\<^sub>2"
+| tcv_inr [simp]: "\<Gamma> \<turnstile> v : t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> InrV v : t\<^sub>1 \<oplus> t\<^sub>2"
+| tcv_fun [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> FunV e : t\<^sub>1 \<hookrightarrow> t\<^sub>2"
+| tcv_inj [simp]: "\<Gamma> \<turnstile> v : \<mu> F \<star> F \<Longrightarrow> \<Gamma> \<turnstile> InjV F v : \<mu> F"
 
-inductive_cases [elim]: "\<epsilon> \<turnstile> t \<rightarrow> t'"
-inductive_cases [elim]: "\<kappa> v \<turnstile> t \<rightarrow> t'"
-inductive_cases [elim]: "f \<cdot> g \<turnstile> t \<rightarrow> t'"
-inductive_cases [elim]: "\<pi>\<^sub>1 \<turnstile> t \<rightarrow> t'"
-inductive_cases [elim]: "\<pi>\<^sub>2 \<turnstile> t \<rightarrow> t'"
-inductive_cases [elim]: "\<Theta> \<turnstile> t \<rightarrow> t'"
-inductive_cases [elim]: "f\<^sub>l \<parallel> f\<^sub>r \<turnstile> t \<rightarrow> t'"
-inductive_cases [elim]: "\<iota>\<^sub>l \<turnstile> t \<rightarrow> t'"
-inductive_cases [elim]: "\<iota>\<^sub>r \<turnstile> t \<rightarrow> t'"
-inductive_cases [elim]: "\<Xi> \<turnstile> t \<rightarrow> t'"
-inductive_cases [elim]: "f\<^sub>l \<bar> f\<^sub>r \<turnstile> t \<rightarrow> t'"
-inductive_cases [elim]: "\<rhd> \<turnstile> t \<rightarrow> t'"
-inductive_cases [elim]: "$ \<turnstile> t \<rightarrow> t'"
-inductive_cases [elim]: "g \<leftarrow> f \<turnstile> t \<rightarrow> t'"
-inductive_cases [elim]: "\<prec>\<^bsub>F\<^esub> \<turnstile> t \<rightarrow> t'"
-inductive_cases [elim]: "\<succ>\<^bsub>F\<^esub> \<turnstile> t \<rightarrow> t'"
-inductive_cases [elim]: "\<lparr> f \<rparr>\<^bsub>F\<^esub> \<turnstile> t \<rightarrow> t'"
-inductive_cases [elim]: "\<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<turnstile> t \<rightarrow> t'"
+inductive_cases [elim]: "\<Gamma> \<turnstile> \<epsilon> : t \<rightarrow> t'"
+inductive_cases [elim]: "\<Gamma> \<turnstile> \<kappa> v : t \<rightarrow> t'"
+inductive_cases [elim]: "\<Gamma> \<turnstile> f \<cdot> g : t \<rightarrow> t'"
+inductive_cases [elim]: "\<Gamma> \<turnstile> \<pi>\<^sub>1 : t \<rightarrow> t'"
+inductive_cases [elim]: "\<Gamma> \<turnstile> \<pi>\<^sub>2 : t \<rightarrow> t'"
+inductive_cases [elim]: "\<Gamma> \<turnstile> \<Theta> : t \<rightarrow> t'"
+inductive_cases [elim]: "\<Gamma> \<turnstile> f\<^sub>l \<parallel> f\<^sub>r : t \<rightarrow> t'"
+inductive_cases [elim]: "\<Gamma> \<turnstile> \<iota>\<^sub>l : t \<rightarrow> t'"
+inductive_cases [elim]: "\<Gamma> \<turnstile> \<iota>\<^sub>r : t \<rightarrow> t'"
+inductive_cases [elim]: "\<Gamma> \<turnstile> \<Xi> : t \<rightarrow> t'"
+inductive_cases [elim]: "\<Gamma> \<turnstile> f\<^sub>l \<bar> f\<^sub>r : t \<rightarrow> t'"
+inductive_cases [elim]: "\<Gamma> \<turnstile> \<rhd> : t \<rightarrow> t'"
+inductive_cases [elim]: "\<Gamma> \<turnstile> $ : t \<rightarrow> t'"
+inductive_cases [elim]: "\<Gamma> \<turnstile> g \<leftarrow> f : t \<rightarrow> t'"
+inductive_cases [elim]: "\<Gamma> \<turnstile> \<prec>\<^bsub>F\<^esub> : t \<rightarrow> t'"
+inductive_cases [elim]: "\<Gamma> \<turnstile> \<succ>\<^bsub>F\<^esub> : t \<rightarrow> t'"
+inductive_cases [elim]: "\<Gamma> \<turnstile> \<lparr> f \<rparr>\<^bsub>F\<^esub> : t \<rightarrow> t'"
+inductive_cases [elim]: "\<Gamma> \<turnstile> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> : t \<rightarrow> t'"
 
-inductive_cases [elim]: "UnitV \<turnstile> t"
-inductive_cases [elim]: "PairV v\<^sub>1 v\<^sub>2 \<turnstile> t"
-inductive_cases [elim]: "InrV v \<turnstile> t"
-inductive_cases [elim]: "InlV v \<turnstile> t"
-inductive_cases [elim]: "FunV e \<turnstile> t"
-inductive_cases [elim]: "InjV f v \<turnstile> t"
+inductive_cases [elim]: "\<Gamma> \<turnstile> UnitV : t"
+inductive_cases [elim]: "\<Gamma> \<turnstile> PairV v\<^sub>1 v\<^sub>2 : t"
+inductive_cases [elim]: "\<Gamma> \<turnstile> InrV v : t"
+inductive_cases [elim]: "\<Gamma> \<turnstile> InlV v : t"
+inductive_cases [elim]: "\<Gamma> \<turnstile> FunV e : t"
+inductive_cases [elim]: "\<Gamma> \<turnstile> InjV f v : t"
 
 (* evaluation *)
 
@@ -127,28 +130,29 @@ inductive evaluate :: "expr \<Rightarrow> val \<Rightarrow> expr \<Rightarrow> v
 
 (* safety *)
 
-lemma canonical_unit: "v \<turnstile> \<one> \<Longrightarrow> v = UnitV"
-  by (cases v \<one> rule: typecheck\<^sub>v.cases) simp_all
+lemma canonical_unit: "\<Gamma> \<turnstile> v : \<one> \<Longrightarrow> v = UnitV"
+  by (cases \<Gamma> v \<one> rule: typecheck\<^sub>v.cases) simp_all
 
-lemma canonical_prod: "v \<turnstile> t\<^sub>1 \<otimes> t\<^sub>2 \<Longrightarrow> \<exists>v\<^sub>1 v\<^sub>2. v\<^sub>1 \<turnstile> t\<^sub>1 \<and> v\<^sub>2 \<turnstile> t\<^sub>2 \<and> v = PairV v\<^sub>1 v\<^sub>2"
-  by (cases v "t\<^sub>1 \<otimes> t\<^sub>2" rule: typecheck\<^sub>v.cases) simp_all
+lemma canonical_prod: "\<Gamma> \<turnstile> v : t\<^sub>1 \<otimes> t\<^sub>2 \<Longrightarrow> \<exists>v\<^sub>1 v\<^sub>2. (\<Gamma> \<turnstile> v\<^sub>1 : t\<^sub>1) \<and> (\<Gamma> \<turnstile> v\<^sub>2 : t\<^sub>2) \<and> v = PairV v\<^sub>1 v\<^sub>2"
+  by (cases \<Gamma> v "t\<^sub>1 \<otimes> t\<^sub>2" rule: typecheck\<^sub>v.cases) simp_all
 
-lemma canonical_sum: "v \<turnstile> t\<^sub>1 \<oplus> t\<^sub>2 \<Longrightarrow> \<exists>v'. (v' \<turnstile> t\<^sub>1 \<and> v = InlV v') \<or> (v' \<turnstile> t\<^sub>2 \<and> v = InrV v')"
-  by (cases v "t\<^sub>1 \<oplus> t\<^sub>2" rule: typecheck\<^sub>v.cases) simp_all
+lemma canonical_sum: "\<Gamma> \<turnstile> v : t\<^sub>1 \<oplus> t\<^sub>2 \<Longrightarrow> 
+    \<exists>v'. ((\<Gamma> \<turnstile> v' : t\<^sub>1) \<and> v = InlV v') \<or> ((\<Gamma> \<turnstile> v' : t\<^sub>2) \<and> v = InrV v')"
+  by (cases \<Gamma> v "t\<^sub>1 \<oplus> t\<^sub>2" rule: typecheck\<^sub>v.cases) simp_all
 
-lemma canonical_arrow: "v \<turnstile> t\<^sub>1 \<hookrightarrow> t\<^sub>2 \<Longrightarrow> \<exists>e. (e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2) \<and> v = FunV e"
-  by (cases v "t\<^sub>1 \<hookrightarrow> t\<^sub>2" rule: typecheck\<^sub>v.cases) simp_all
+lemma canonical_arrow: "\<Gamma> \<turnstile> v : t\<^sub>1 \<hookrightarrow> t\<^sub>2 \<Longrightarrow> \<exists>e. (\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2) \<and> v = FunV e"
+  by (cases \<Gamma> v "t\<^sub>1 \<hookrightarrow> t\<^sub>2" rule: typecheck\<^sub>v.cases) simp_all
 
-lemma canonical_mu: "v \<turnstile> \<mu> F \<Longrightarrow> \<exists>v'. v' \<turnstile> \<mu> F \<star> F \<and> v = InjV F v'"
-  by (cases v "\<mu> F" rule: typecheck\<^sub>v.cases) simp_all
+lemma canonical_mu: "\<Gamma> \<turnstile> v : \<mu> F \<Longrightarrow> \<exists>v'. (\<Gamma> \<turnstile> v' : \<mu> F \<star> F) \<and> v = InjV F v'"
+  by (cases \<Gamma> v "\<mu> F" rule: typecheck\<^sub>v.cases) simp_all
 
-theorem progress: "e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> v \<turnstile> t\<^sub>1 \<Longrightarrow> e \<noteq> \<epsilon> \<Longrightarrow> \<exists>e' v'. e \<cdot> v \<leadsto> e' \<cdot> v'"
-    and "v \<turnstile> t\<^sub>1 \<Longrightarrow> True"
-  proof (induction e t\<^sub>1 t\<^sub>2 arbitrary: v rule: typecheck\<^sub>e_typecheck\<^sub>v.inducts)
-  case (tc_con v\<^sub>2 t\<^sub>2 t\<^sub>1)
+theorem progress: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> v : t\<^sub>1 \<Longrightarrow> e \<noteq> \<epsilon> \<Longrightarrow> \<exists>e' v'. e \<cdot> v \<leadsto> e' \<cdot> v'"
+    and "\<Gamma> \<turnstile> v : t\<^sub>1 \<Longrightarrow> True"
+  proof (induction \<Gamma> e t\<^sub>1 t\<^sub>2 arbitrary: v rule: typecheck\<^sub>e_typecheck\<^sub>v.inducts)
+  case (tc_con \<Gamma> v\<^sub>2 t\<^sub>2 t\<^sub>1)
     have "\<kappa> v\<^sub>2 \<cdot> v \<leadsto> \<epsilon> \<cdot> v\<^sub>2" by simp
     thus ?case by fastforce
-  next case (tc_comp f t\<^sub>2 t\<^sub>3 g t\<^sub>1)
+  next case (tc_comp \<Gamma> f t\<^sub>2 t\<^sub>3 g)
     thus ?case
       proof (cases "g = \<epsilon>")
       case True
@@ -159,19 +163,19 @@ theorem progress: "e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrighta
         with tc_comp have "(f \<cdot> g) \<cdot> v \<leadsto> (f \<cdot> g') \<cdot> v'" by simp
         thus ?thesis by fastforce
       qed
-  next case (tc_fst t\<^sub>1 t\<^sub>2)
+  next case tc_fst
     then obtain v\<^sub>1 v\<^sub>2 where "v = PairV v\<^sub>1 v\<^sub>2" using canonical_prod by blast
     hence "\<pi>\<^sub>1 \<cdot> v \<leadsto> \<epsilon> \<cdot> v\<^sub>1" by simp
     thus ?case by fastforce
-  next case (tc_snd t\<^sub>1 t\<^sub>2)
+  next case tc_snd
     then obtain v\<^sub>1 v\<^sub>2 where "v = PairV v\<^sub>1 v\<^sub>2" using canonical_prod by blast
     hence "\<pi>\<^sub>2 \<cdot> v \<leadsto> \<epsilon> \<cdot> v\<^sub>2" by simp
     thus ?case by fastforce
-  next case (tc_tup t)
+  next case tc_tup
     hence "\<Theta> \<cdot> v \<leadsto> \<epsilon> \<cdot> PairV v v" by simp
     thus ?case by fastforce
-  next case (tc_pair f\<^sub>1 t\<^sub>1 t\<^sub>2 f\<^sub>2 t\<^sub>3 t\<^sub>4)
-    then obtain v\<^sub>1 v\<^sub>2 where V: "v\<^sub>1 \<turnstile> t\<^sub>1 \<and> v\<^sub>2 \<turnstile> t\<^sub>3 \<and> v = PairV v\<^sub>1 v\<^sub>2" using canonical_prod by blast
+  next case (tc_pair \<Gamma> f\<^sub>1 t\<^sub>1 t\<^sub>2 f\<^sub>2)
+    then obtain v\<^sub>1 v\<^sub>2 where V: "v = PairV v\<^sub>1 v\<^sub>2" using canonical_prod by blast
     thus ?case
       proof (cases "f\<^sub>1 = \<epsilon>")
       case True note T = True
@@ -190,10 +194,10 @@ theorem progress: "e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrighta
         hence "f\<^sub>1 \<parallel> f\<^sub>2 \<cdot> PairV v\<^sub>1 v\<^sub>2 \<leadsto> f\<^sub>1' \<parallel> f\<^sub>2 \<cdot> PairV v\<^sub>1' v\<^sub>2" by simp
         with V show ?thesis by fastforce
       qed
-  next case (tc_inl t\<^sub>1 t\<^sub>2)
+  next case tc_inl
     hence "\<iota>\<^sub>l \<cdot> v \<leadsto> \<epsilon> \<cdot> InlV v" by simp
     thus ?case by fastforce
-  next case (tc_inr t\<^sub>2 t\<^sub>1)
+  next case tc_inr
     hence "\<iota>\<^sub>r \<cdot> v \<leadsto> \<epsilon> \<cdot> InrV v" by simp
     thus ?case by fastforce
   next case tc_str
@@ -207,7 +211,7 @@ theorem progress: "e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrighta
         with V have "\<Xi> \<cdot> v \<leadsto> \<epsilon> \<cdot> v'" by simp
         thus ?thesis by fastforce
       qed
-  next case (tc_case f\<^sub>l t\<^sub>1 t\<^sub>3 f\<^sub>r t\<^sub>2)
+  next case (tc_case \<Gamma> f\<^sub>l t\<^sub>1 t\<^sub>3 f\<^sub>r)
     then obtain v' where V: "v = InlV v' \<or> v = InrV v'" using canonical_sum by blast
     thus ?case
       proof (cases "v = InlV v'")
@@ -218,7 +222,7 @@ theorem progress: "e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrighta
         with V have "f\<^sub>l \<bar> f\<^sub>r \<cdot> v \<leadsto> (\<iota>\<^sub>r \<cdot> f\<^sub>r) \<cdot> v'" by simp
         thus ?thesis by fastforce
       qed
-  next case (tc_dst t\<^sub>1 t\<^sub>2 t\<^sub>3)
+  next case tc_dst
     then obtain v\<^sub>1 v\<^sub>2 where V: "v = PairV (InlV v\<^sub>1) v\<^sub>2 \<or> v = PairV (InrV v\<^sub>1) v\<^sub>2" 
       using canonical_prod canonical_sum by blast
     thus ?case
@@ -230,99 +234,99 @@ theorem progress: "e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrighta
         with V have "\<rhd> \<cdot> v \<leadsto> \<epsilon> \<cdot> InrV (PairV v\<^sub>1 v\<^sub>2)" by simp
         thus ?thesis by fastforce
       qed
-  next case (tc_app t\<^sub>1 t\<^sub>2)
+  next case tc_app
     then obtain e v' where V: "v = PairV (FunV e) v'" using canonical_prod canonical_arrow by blast
     moreover hence "$ \<cdot> v \<leadsto> e \<cdot> v'" by simp
     ultimately show ?case by fastforce
-  next case (tc_arr f t\<^sub>1 t\<^sub>2 g t\<^sub>3 t\<^sub>4)
+  next case (tc_arr \<Gamma> f t\<^sub>1 t\<^sub>2 g)
     then obtain e where "v = FunV e" using canonical_arrow by blast
     moreover hence "g \<leftarrow> f \<cdot> FunV e \<leadsto> \<epsilon> \<cdot> FunV (g \<cdot> e \<cdot> f)" by simp
     ultimately show ?case by fastforce
-  next case (tc_inj F)
+  next case (tc_inj \<Gamma> F)
     hence "\<succ>\<^bsub>F\<^esub> \<cdot> v \<leadsto> \<epsilon> \<cdot> InjV F v" by simp
     thus ?case by fastforce
-  next case (tc_outj F)
+  next case (tc_outj \<Gamma> F)
     then obtain v' where "v = InjV F v'" using canonical_mu by blast
     moreover hence "\<prec>\<^bsub>F\<^esub> \<cdot> v \<leadsto> \<epsilon> \<cdot> v'" by simp
     ultimately show ?case by fastforce
-  next case (tc_cata f t F)
+  next case (tc_cata \<Gamma> f t F)
     hence "\<lparr> f \<rparr>\<^bsub>F\<^esub> \<cdot> v \<leadsto> (f \<cdot> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>F\<^esub>) \<cdot> v" by simp
     thus ?case by fastforce
-  next case (tc_ana f t F)
+  next case (tc_ana \<Gamma> f t F)
     hence "\<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<cdot> v \<leadsto> (\<succ>\<^bsub>F\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<cdot> f) \<cdot> v" by simp
     thus ?case by fastforce
   qed simp_all
 
-lemma [simp]: "e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> e \<bullet> F \<turnstile> t\<^sub>1 \<star> F \<rightarrow> t\<^sub>2 \<star> F"
+lemma [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> e \<bullet> F : t\<^sub>1 \<star> F \<rightarrow> t\<^sub>2 \<star> F"
   by (induction e F rule: apply_functor_expr.induct) simp_all
 
-theorem preservation: "e \<cdot> v \<leadsto> e' \<cdot> v' \<Longrightarrow> e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> v \<turnstile> t\<^sub>1 \<Longrightarrow> 
-    \<exists>t\<^sub>3. (e' \<turnstile> t\<^sub>3 \<rightarrow> t\<^sub>2) \<and> (v' \<turnstile> t\<^sub>3)"
+theorem preservation: "e \<cdot> v \<leadsto> e' \<cdot> v' \<Longrightarrow> \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> v : t\<^sub>1 \<Longrightarrow> 
+    \<exists>t\<^sub>3. (\<Gamma> \<turnstile> e' : t\<^sub>3 \<rightarrow> t\<^sub>2) \<and> (\<Gamma> \<turnstile> v' : t\<^sub>3)"
   proof (induction e v e' v' arbitrary: t\<^sub>1 t\<^sub>2 rule: evaluate.induct)
   case (ev_pair1 f\<^sub>1 v\<^sub>1 f\<^sub>1' v\<^sub>1' f\<^sub>2 v\<^sub>2)
-    then obtain t\<^sub>1\<^sub>1 t\<^sub>1\<^sub>2 t\<^sub>2\<^sub>1 t\<^sub>2\<^sub>2 t\<^sub>1\<^sub>1' where T: "v\<^sub>1 \<turnstile> t\<^sub>1\<^sub>1 \<and> v\<^sub>2 \<turnstile> t\<^sub>1\<^sub>2 \<and> (f\<^sub>1 \<turnstile> t\<^sub>1\<^sub>1 \<rightarrow> t\<^sub>2\<^sub>1) \<and> 
-      (f\<^sub>2 \<turnstile> t\<^sub>1\<^sub>2 \<rightarrow> t\<^sub>2\<^sub>2) \<and> t\<^sub>1 = t\<^sub>1\<^sub>1 \<otimes> t\<^sub>1\<^sub>2 \<and> t\<^sub>2 = t\<^sub>2\<^sub>1 \<otimes> t\<^sub>2\<^sub>2 \<and> (f\<^sub>1' \<turnstile> t\<^sub>1\<^sub>1' \<rightarrow> t\<^sub>2\<^sub>1) \<and> v\<^sub>1' \<turnstile> t\<^sub>1\<^sub>1'" 
-        by fastforce
-    hence "(f\<^sub>1' \<parallel> f\<^sub>2 \<turnstile> t\<^sub>1\<^sub>1' \<otimes> t\<^sub>1\<^sub>2 \<rightarrow> t\<^sub>2) \<and> PairV v\<^sub>1' v\<^sub>2 \<turnstile> t\<^sub>1\<^sub>1' \<otimes> t\<^sub>1\<^sub>2" by simp
+    then obtain t\<^sub>1\<^sub>1 t\<^sub>1\<^sub>2 t\<^sub>2\<^sub>1 t\<^sub>2\<^sub>2 t\<^sub>1\<^sub>1' where T: "(\<Gamma> \<turnstile> v\<^sub>1 : t\<^sub>1\<^sub>1) \<and> (\<Gamma> \<turnstile> v\<^sub>2 : t\<^sub>1\<^sub>2) \<and> 
+      (\<Gamma> \<turnstile> f\<^sub>1 : t\<^sub>1\<^sub>1 \<rightarrow> t\<^sub>2\<^sub>1) \<and> (\<Gamma> \<turnstile> f\<^sub>2 : t\<^sub>1\<^sub>2 \<rightarrow> t\<^sub>2\<^sub>2) \<and> t\<^sub>1 = t\<^sub>1\<^sub>1 \<otimes> t\<^sub>1\<^sub>2 \<and> t\<^sub>2 = t\<^sub>2\<^sub>1 \<otimes> t\<^sub>2\<^sub>2 \<and> 
+        (\<Gamma> \<turnstile> f\<^sub>1' : t\<^sub>1\<^sub>1' \<rightarrow> t\<^sub>2\<^sub>1) \<and> \<Gamma> \<turnstile> v\<^sub>1' : t\<^sub>1\<^sub>1'" by fastforce
+    hence "(\<Gamma> \<turnstile> f\<^sub>1' \<parallel> f\<^sub>2 : t\<^sub>1\<^sub>1' \<otimes> t\<^sub>1\<^sub>2 \<rightarrow> t\<^sub>2) \<and> \<Gamma> \<turnstile> PairV v\<^sub>1' v\<^sub>2 : t\<^sub>1\<^sub>1' \<otimes> t\<^sub>1\<^sub>2" by simp
     thus ?case by fastforce
   next case (ev_pair2 f\<^sub>2 v\<^sub>2 f\<^sub>2' v\<^sub>2' v\<^sub>1)
-    then obtain t\<^sub>1\<^sub>1 t\<^sub>1\<^sub>2 t\<^sub>2\<^sub>2 t\<^sub>1\<^sub>2' where T: "v\<^sub>1 \<turnstile> t\<^sub>1\<^sub>1 \<and> v\<^sub>2 \<turnstile> t\<^sub>1\<^sub>2 \<and> (f\<^sub>2 \<turnstile> t\<^sub>1\<^sub>2 \<rightarrow> t\<^sub>2\<^sub>2) \<and> 
-      t\<^sub>1 = t\<^sub>1\<^sub>1 \<otimes> t\<^sub>1\<^sub>2 \<and> t\<^sub>2 = t\<^sub>1\<^sub>1 \<otimes> t\<^sub>2\<^sub>2 \<and> (f\<^sub>2' \<turnstile> t\<^sub>1\<^sub>2' \<rightarrow> t\<^sub>2\<^sub>2) \<and> v\<^sub>2' \<turnstile> t\<^sub>1\<^sub>2'" by fastforce
-    hence "(\<epsilon> \<parallel> f\<^sub>2' \<turnstile> t\<^sub>1\<^sub>1 \<otimes> t\<^sub>1\<^sub>2' \<rightarrow> t\<^sub>2) \<and> PairV v\<^sub>1 v\<^sub>2' \<turnstile> t\<^sub>1\<^sub>1 \<otimes> t\<^sub>1\<^sub>2'" by simp
+    then obtain t\<^sub>1\<^sub>1 t\<^sub>1\<^sub>2 t\<^sub>2\<^sub>2 t\<^sub>1\<^sub>2' where T: "(\<Gamma> \<turnstile> v\<^sub>1 : t\<^sub>1\<^sub>1) \<and> (\<Gamma> \<turnstile> v\<^sub>2 : t\<^sub>1\<^sub>2) \<and> (\<Gamma> \<turnstile> f\<^sub>2 : t\<^sub>1\<^sub>2 \<rightarrow> t\<^sub>2\<^sub>2) \<and> 
+      t\<^sub>1 = t\<^sub>1\<^sub>1 \<otimes> t\<^sub>1\<^sub>2 \<and> t\<^sub>2 = t\<^sub>1\<^sub>1 \<otimes> t\<^sub>2\<^sub>2 \<and> (\<Gamma> \<turnstile> f\<^sub>2' : t\<^sub>1\<^sub>2' \<rightarrow> t\<^sub>2\<^sub>2) \<and> \<Gamma> \<turnstile> v\<^sub>2' : t\<^sub>1\<^sub>2'" by fastforce
+    hence "(\<Gamma> \<turnstile> \<epsilon> \<parallel> f\<^sub>2' : t\<^sub>1\<^sub>1 \<otimes> t\<^sub>1\<^sub>2' \<rightarrow> t\<^sub>2) \<and> \<Gamma> \<turnstile> PairV v\<^sub>1 v\<^sub>2' : t\<^sub>1\<^sub>1 \<otimes> t\<^sub>1\<^sub>2'" by simp
     thus ?case by fastforce
   next case (ev_tup v)
     hence "t\<^sub>2 = t\<^sub>1 \<otimes> t\<^sub>1" by fastforce
-    moreover from ev_tup have "(\<epsilon> \<turnstile> t\<^sub>1 \<otimes> t\<^sub>1 \<rightarrow> t\<^sub>1 \<otimes> t\<^sub>1) \<and> PairV v v \<turnstile> t\<^sub>1 \<otimes> t\<^sub>1" by simp
+    moreover from ev_tup have "(\<Gamma> \<turnstile> \<epsilon> : t\<^sub>1 \<otimes> t\<^sub>1 \<rightarrow> t\<^sub>1 \<otimes> t\<^sub>1) \<and> \<Gamma> \<turnstile> PairV v v : t\<^sub>1 \<otimes> t\<^sub>1" by simp
     ultimately show ?case by fastforce
   next case (ev_inl v)
     moreover then obtain t\<^sub>3 where "t\<^sub>2 = t\<^sub>1 \<oplus> t\<^sub>3" by fastforce
-    ultimately have "(\<epsilon> \<turnstile> t\<^sub>1 \<oplus> t\<^sub>3 \<rightarrow> t\<^sub>2) \<and> InlV v \<turnstile> t\<^sub>1 \<oplus> t\<^sub>3" by simp
+    ultimately have "(\<Gamma> \<turnstile> \<epsilon> : t\<^sub>1 \<oplus> t\<^sub>3 \<rightarrow> t\<^sub>2) \<and> \<Gamma> \<turnstile> InlV v : t\<^sub>1 \<oplus> t\<^sub>3" by simp
     thus ?case by fastforce
   next case (ev_inr v)
     moreover then obtain t\<^sub>3 where "t\<^sub>2 = t\<^sub>3 \<oplus> t\<^sub>1" by fastforce
-    ultimately have "(\<epsilon> \<turnstile> t\<^sub>3 \<oplus> t\<^sub>1 \<rightarrow> t\<^sub>2) \<and> InrV v \<turnstile> t\<^sub>3 \<oplus> t\<^sub>1" by simp
+    ultimately have "(\<Gamma> \<turnstile> \<epsilon> : t\<^sub>3 \<oplus> t\<^sub>1 \<rightarrow> t\<^sub>2) \<and> \<Gamma> \<turnstile> InrV v : t\<^sub>3 \<oplus> t\<^sub>1" by simp
     thus ?case by fastforce
   next case (ev_csl f\<^sub>l f\<^sub>r v)
-    then obtain t\<^sub>1\<^sub>l t\<^sub>1\<^sub>r t\<^sub>2\<^sub>l t\<^sub>2\<^sub>r where V: "(f\<^sub>l \<turnstile> t\<^sub>1\<^sub>l \<rightarrow> t\<^sub>2\<^sub>l) \<and> (f\<^sub>r \<turnstile> t\<^sub>1\<^sub>r \<rightarrow> t\<^sub>2\<^sub>r) \<and> (v \<turnstile> t\<^sub>1\<^sub>l) \<and>
-      t\<^sub>1 = t\<^sub>1\<^sub>l \<oplus> t\<^sub>1\<^sub>r \<and> t\<^sub>2 = t\<^sub>2\<^sub>l \<oplus> t\<^sub>2\<^sub>r" by fastforce
-    hence "\<iota>\<^sub>l \<cdot> f\<^sub>l \<turnstile> t\<^sub>1\<^sub>l \<rightarrow> t\<^sub>2\<^sub>l \<oplus> t\<^sub>2\<^sub>r" by (metis tc_inl tc_comp)
+    then obtain t\<^sub>1\<^sub>l t\<^sub>1\<^sub>r t\<^sub>2\<^sub>l t\<^sub>2\<^sub>r where V: "(\<Gamma> \<turnstile> f\<^sub>l : t\<^sub>1\<^sub>l \<rightarrow> t\<^sub>2\<^sub>l) \<and> (\<Gamma> \<turnstile> f\<^sub>r : t\<^sub>1\<^sub>r \<rightarrow> t\<^sub>2\<^sub>r) \<and> 
+      (\<Gamma> \<turnstile> v : t\<^sub>1\<^sub>l) \<and> t\<^sub>1 = t\<^sub>1\<^sub>l \<oplus> t\<^sub>1\<^sub>r \<and> t\<^sub>2 = t\<^sub>2\<^sub>l \<oplus> t\<^sub>2\<^sub>r" by fastforce
+    hence "\<Gamma> \<turnstile> \<iota>\<^sub>l \<cdot> f\<^sub>l : t\<^sub>1\<^sub>l \<rightarrow> t\<^sub>2\<^sub>l \<oplus> t\<^sub>2\<^sub>r" by (metis tc_inl tc_comp)
     with V show ?case by fastforce
   next case (ev_csr f\<^sub>l f\<^sub>r v)
-    then obtain t\<^sub>1\<^sub>l t\<^sub>1\<^sub>r t\<^sub>2\<^sub>l t\<^sub>2\<^sub>r where V: "(f\<^sub>l \<turnstile> t\<^sub>1\<^sub>l \<rightarrow> t\<^sub>2\<^sub>l) \<and> (f\<^sub>r \<turnstile> t\<^sub>1\<^sub>r \<rightarrow> t\<^sub>2\<^sub>r) \<and> (v \<turnstile> t\<^sub>1\<^sub>r) \<and>
-      t\<^sub>1 = t\<^sub>1\<^sub>l \<oplus> t\<^sub>1\<^sub>r \<and> t\<^sub>2 = t\<^sub>2\<^sub>l \<oplus> t\<^sub>2\<^sub>r" by fastforce
-    hence "\<iota>\<^sub>r \<cdot> f\<^sub>r \<turnstile> t\<^sub>1\<^sub>r \<rightarrow> t\<^sub>2\<^sub>l \<oplus> t\<^sub>2\<^sub>r" by (metis tc_inr tc_comp)
+    then obtain t\<^sub>1\<^sub>l t\<^sub>1\<^sub>r t\<^sub>2\<^sub>l t\<^sub>2\<^sub>r where V: "(\<Gamma> \<turnstile> f\<^sub>l : t\<^sub>1\<^sub>l \<rightarrow> t\<^sub>2\<^sub>l) \<and> (\<Gamma> \<turnstile> f\<^sub>r : t\<^sub>1\<^sub>r \<rightarrow> t\<^sub>2\<^sub>r) \<and> 
+      (\<Gamma> \<turnstile> v : t\<^sub>1\<^sub>r) \<and> t\<^sub>1 = t\<^sub>1\<^sub>l \<oplus> t\<^sub>1\<^sub>r \<and> t\<^sub>2 = t\<^sub>2\<^sub>l \<oplus> t\<^sub>2\<^sub>r" by fastforce
+    hence "\<Gamma> \<turnstile> \<iota>\<^sub>r \<cdot> f\<^sub>r : t\<^sub>1\<^sub>r \<rightarrow> t\<^sub>2\<^sub>l \<oplus> t\<^sub>2\<^sub>r" by (metis tc_inr tc_comp)
     with V show ?case by fastforce
   next case (ev_dstl v\<^sub>1 v\<^sub>2)
-    then obtain t\<^sub>3 t\<^sub>4 t\<^sub>5 where "v\<^sub>1 \<turnstile> t\<^sub>3 \<and> v\<^sub>2 \<turnstile> t\<^sub>5 \<and> t\<^sub>1 = (t\<^sub>3 \<oplus> t\<^sub>4) \<otimes> t\<^sub>5 \<and> t\<^sub>2 = t\<^sub>3 \<otimes> t\<^sub>5 \<oplus> t\<^sub>4 \<otimes> t\<^sub>5" 
-      by fastforce
-    hence "(\<epsilon> \<turnstile> t\<^sub>2 \<rightarrow> t\<^sub>2) \<and> InlV (PairV v\<^sub>1 v\<^sub>2) \<turnstile> t\<^sub>2" by simp
+    then obtain t\<^sub>3 t\<^sub>4 t\<^sub>5 where "(\<Gamma> \<turnstile> v\<^sub>1 : t\<^sub>3) \<and> (\<Gamma> \<turnstile> v\<^sub>2 : t\<^sub>5) \<and> t\<^sub>1 = (t\<^sub>3 \<oplus> t\<^sub>4) \<otimes> t\<^sub>5 \<and> 
+      t\<^sub>2 = t\<^sub>3 \<otimes> t\<^sub>5 \<oplus> t\<^sub>4 \<otimes> t\<^sub>5" by fastforce
+    hence "(\<Gamma> \<turnstile> \<epsilon> : t\<^sub>2 \<rightarrow> t\<^sub>2) \<and> \<Gamma> \<turnstile> InlV (PairV v\<^sub>1 v\<^sub>2) : t\<^sub>2" by simp
     thus ?case by fastforce
   next case (ev_dstr v\<^sub>1 v\<^sub>2)
-    then obtain t\<^sub>3 t\<^sub>4 t\<^sub>5 where "v\<^sub>1 \<turnstile> t\<^sub>4 \<and> v\<^sub>2 \<turnstile> t\<^sub>5 \<and> t\<^sub>1 = (t\<^sub>3 \<oplus> t\<^sub>4) \<otimes> t\<^sub>5 \<and> t\<^sub>2 = t\<^sub>3 \<otimes> t\<^sub>5 \<oplus> t\<^sub>4 \<otimes> t\<^sub>5" 
-      by fastforce
-    hence "(\<epsilon> \<turnstile> t\<^sub>2 \<rightarrow> t\<^sub>2) \<and> InrV (PairV v\<^sub>1 v\<^sub>2) \<turnstile> t\<^sub>2" by simp
+    then obtain t\<^sub>3 t\<^sub>4 t\<^sub>5 where "(\<Gamma> \<turnstile> v\<^sub>1 : t\<^sub>4) \<and> (\<Gamma> \<turnstile> v\<^sub>2 : t\<^sub>5) \<and> t\<^sub>1 = (t\<^sub>3 \<oplus> t\<^sub>4) \<otimes> t\<^sub>5 \<and> 
+      t\<^sub>2 = t\<^sub>3 \<otimes> t\<^sub>5 \<oplus> t\<^sub>4 \<otimes> t\<^sub>5" by fastforce
+    hence "(\<Gamma> \<turnstile> \<epsilon> : t\<^sub>2 \<rightarrow> t\<^sub>2) \<and> \<Gamma> \<turnstile> InrV (PairV v\<^sub>1 v\<^sub>2) : t\<^sub>2" by simp
     thus ?case by fastforce
   next case (ev_arr g f e)
-    then obtain t\<^sub>1\<^sub>1 t\<^sub>1\<^sub>2 t\<^sub>2\<^sub>1 t\<^sub>2\<^sub>2 where "(f \<turnstile> t\<^sub>2\<^sub>1 \<rightarrow> t\<^sub>1\<^sub>1) \<and> (g \<turnstile> t\<^sub>1\<^sub>2 \<rightarrow> t\<^sub>2\<^sub>2) \<and> (e \<turnstile> t\<^sub>1\<^sub>1 \<rightarrow> t\<^sub>1\<^sub>2) \<and>
-      t\<^sub>1 = t\<^sub>1\<^sub>1 \<hookrightarrow> t\<^sub>1\<^sub>2 \<and> t\<^sub>2 = t\<^sub>2\<^sub>1 \<hookrightarrow> t\<^sub>2\<^sub>2" by fastforce
-    hence "(\<epsilon> \<turnstile> t\<^sub>2\<^sub>1 \<hookrightarrow> t\<^sub>2\<^sub>2 \<rightarrow> t\<^sub>2) \<and> FunV (g \<cdot> e \<cdot> f) \<turnstile> t\<^sub>2\<^sub>1 \<hookrightarrow> t\<^sub>2\<^sub>2" by fastforce
+    then obtain t\<^sub>1\<^sub>1 t\<^sub>1\<^sub>2 t\<^sub>2\<^sub>1 t\<^sub>2\<^sub>2 where "(\<Gamma> \<turnstile> f : t\<^sub>2\<^sub>1 \<rightarrow> t\<^sub>1\<^sub>1) \<and> (\<Gamma> \<turnstile> g : t\<^sub>1\<^sub>2 \<rightarrow> t\<^sub>2\<^sub>2) \<and> 
+      (\<Gamma> \<turnstile> e : t\<^sub>1\<^sub>1 \<rightarrow> t\<^sub>1\<^sub>2) \<and> t\<^sub>1 = t\<^sub>1\<^sub>1 \<hookrightarrow> t\<^sub>1\<^sub>2 \<and> t\<^sub>2 = t\<^sub>2\<^sub>1 \<hookrightarrow> t\<^sub>2\<^sub>2" by fastforce
+    hence "(\<Gamma> \<turnstile> \<epsilon> : t\<^sub>2\<^sub>1 \<hookrightarrow> t\<^sub>2\<^sub>2 \<rightarrow> t\<^sub>2) \<and> \<Gamma> \<turnstile> FunV (g \<cdot> e \<cdot> f) : t\<^sub>2\<^sub>1 \<hookrightarrow> t\<^sub>2\<^sub>2" by fastforce
     thus ?case by fastforce
   next case (ev_inj F v)
-    hence "(\<epsilon> \<turnstile> t\<^sub>2 \<rightarrow> t\<^sub>2) \<and> InjV F v \<turnstile> t\<^sub>2" by fastforce
+    hence "(\<Gamma> \<turnstile> \<epsilon> : t\<^sub>2 \<rightarrow> t\<^sub>2) \<and> \<Gamma> \<turnstile> InjV F v : t\<^sub>2" by fastforce
     thus ?case by fastforce
   next case (ev_cata f F v)
-    hence V: "(f \<turnstile> t\<^sub>2 \<star> F \<rightarrow> t\<^sub>2) \<and> v \<turnstile> \<mu> F" by fastforce
-    moreover from ev_cata have "\<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F \<turnstile> \<mu> F \<star> F \<rightarrow> t\<^sub>2 \<star> F" by fastforce
-    moreover have "\<prec>\<^bsub>F\<^esub> \<turnstile> \<mu> F \<rightarrow> \<mu> F \<star> F" by simp
-    ultimately have "f \<cdot> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>F\<^esub> \<turnstile> \<mu> F \<rightarrow> t\<^sub>2" by (metis tc_comp)
-    with V have "(f \<cdot> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>F\<^esub> \<turnstile> \<mu> F \<rightarrow> t\<^sub>2) \<and> v \<turnstile> \<mu> F" by simp
+    hence V: "(\<Gamma> \<turnstile> f : t\<^sub>2 \<star> F \<rightarrow> t\<^sub>2) \<and> \<Gamma> \<turnstile> v : \<mu> F" by fastforce
+    moreover from ev_cata have "\<Gamma> \<turnstile> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F : \<mu> F \<star> F \<rightarrow> t\<^sub>2 \<star> F" by fastforce
+    moreover have "\<Gamma> \<turnstile> \<prec>\<^bsub>F\<^esub> : \<mu> F \<rightarrow> \<mu> F \<star> F" by simp
+    ultimately have "\<Gamma> \<turnstile> f \<cdot> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>F\<^esub> : \<mu> F \<rightarrow> t\<^sub>2" by (metis tc_comp)
+    with V have "(\<Gamma> \<turnstile> f \<cdot> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>F\<^esub> : \<mu> F \<rightarrow> t\<^sub>2) \<and> \<Gamma> \<turnstile> v : \<mu> F" by simp
     thus ?case by fastforce
   next case (ev_ana f F v)
-    hence V: "(f \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>1 \<star> F) \<and> v \<turnstile> t\<^sub>1 \<and> t\<^sub>2 = \<mu> F" by fastforce
-    hence "\<succ>\<^bsub>F\<^esub> \<turnstile> t\<^sub>2 \<star> F \<rightarrow> t\<^sub>2" by simp
-    moreover from ev_ana have "\<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<turnstile> t\<^sub>1 \<star> F \<rightarrow> t\<^sub>2 \<star> F" by simp
-    moreover from V have "f \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>1 \<star> F" by simp
-    ultimately have "\<succ>\<^bsub>F\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<cdot> f \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2" by simp
+    hence V: "(\<Gamma> \<turnstile> f : t\<^sub>1 \<rightarrow> t\<^sub>1 \<star> F) \<and> (\<Gamma> \<turnstile> v : t\<^sub>1) \<and> t\<^sub>2 = \<mu> F" by fastforce
+    hence "\<Gamma> \<turnstile> \<succ>\<^bsub>F\<^esub> : t\<^sub>2 \<star> F \<rightarrow> t\<^sub>2" by simp
+    moreover from ev_ana have "\<Gamma> \<turnstile> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F : t\<^sub>1 \<star> F \<rightarrow> t\<^sub>2 \<star> F" by simp
+    moreover from V have "\<Gamma> \<turnstile> f : t\<^sub>1 \<rightarrow> t\<^sub>1 \<star> F" by simp
+    ultimately have "\<Gamma> \<turnstile> \<succ>\<^bsub>F\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<cdot> f : t\<^sub>1 \<rightarrow> t\<^sub>2" by simp
     with V show ?case by fastforce
   qed force+
 
@@ -394,10 +398,10 @@ lemma [simp]: "f\<^sub>r \<cdot> v \<Down> v' \<Longrightarrow> f\<^sub>l \<bar>
 
 (* since we are a turing-complete language, total progress is not provable *)
 
-theorem total_preservation: "e \<cdot> v \<Down> v' \<Longrightarrow> e \<turnstile> t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> v \<turnstile> t\<^sub>1 \<Longrightarrow> v' \<turnstile> t\<^sub>2"
+theorem total_preservation: "e \<cdot> v \<Down> v' \<Longrightarrow> \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> v : t\<^sub>1 \<Longrightarrow> \<Gamma> \<turnstile> v' : t\<^sub>2"
   proof (induction e v v' arbitrary: t\<^sub>1 rule: total_eval.induct)
   case (tev_step e v e' v' v'')
-    moreover then obtain t\<^sub>3 where "(e' \<turnstile> t\<^sub>3 \<rightarrow> t\<^sub>2) \<and> (v' \<turnstile> t\<^sub>3)" by (metis preservation)
+    moreover then obtain t\<^sub>3 where "(\<Gamma> \<turnstile> e' : t\<^sub>3 \<rightarrow> t\<^sub>2) \<and> (\<Gamma> \<turnstile> v' : t\<^sub>3)" by (metis preservation)
     ultimately show ?case by fastforce
   qed auto
 
