@@ -41,8 +41,8 @@ fun apply_functor_type :: "type \<Rightarrow> funct \<Rightarrow> type" (infixl 
 | "t \<star> f\<^sub>1 \<Otimes> f\<^sub>2 = (t \<star> f\<^sub>1) \<otimes> (t \<star> f\<^sub>2)"
 | "t \<star> f\<^sub>1 \<Oplus> f\<^sub>2 = (t \<star> f\<^sub>1) \<oplus> (t \<star> f\<^sub>2)"
 
-inductive typecheck\<^sub>e :: "(name \<Rightarrow> type \<times> type) \<Rightarrow> expr \<Rightarrow> type \<Rightarrow> type \<Rightarrow> bool" (infix "\<turnstile> _ : _ \<rightarrow>" 60)
-      and typecheck\<^sub>v :: "(name \<Rightarrow> type \<times> type) \<Rightarrow> val \<Rightarrow> type \<Rightarrow> bool" (infix "\<turnstile> _ :" 60) where
+inductive typecheck\<^sub>e :: "(name \<rightharpoonup> type \<times> type) \<Rightarrow> expr \<Rightarrow> type \<Rightarrow> type \<Rightarrow> bool" (infix "\<turnstile> _ : _ \<rightarrow>" 60)
+      and typecheck\<^sub>v :: "(name \<rightharpoonup> type \<times> type) \<Rightarrow> val \<Rightarrow> type \<Rightarrow> bool" (infix "\<turnstile> _ :" 60) where
   tc_id [simp]: "\<Gamma> \<turnstile> \<epsilon> : t \<rightarrow> t"
 | tc_con [simp]: "\<Gamma> \<turnstile> v : t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> \<kappa> v : t\<^sub>1 \<rightarrow> t\<^sub>2"
 | tc_comp [simp]: "\<Gamma> \<turnstile> f : t\<^sub>2 \<rightarrow> t\<^sub>3 \<Longrightarrow> \<Gamma> \<turnstile> g : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> f \<cdot> g : t\<^sub>1 \<rightarrow> t\<^sub>3"
@@ -61,7 +61,7 @@ inductive typecheck\<^sub>e :: "(name \<Rightarrow> type \<times> type) \<Righta
 | tc_outj [simp]: "\<Gamma> \<turnstile> \<prec>\<^bsub>F\<^esub> : \<mu> F \<rightarrow> \<mu> F \<star> F"
 | tc_cata [simp]: "\<Gamma> \<turnstile> f : t \<star> F \<rightarrow> t \<Longrightarrow> \<Gamma> \<turnstile> \<lparr> f \<rparr>\<^bsub>F\<^esub> : \<mu> F \<rightarrow> t"
 | tc_ana [simp]: "\<Gamma> \<turnstile> f : t \<rightarrow> t \<star> F \<Longrightarrow> \<Gamma> \<turnstile> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> : t \<rightarrow> \<mu> F"
-| tc_var [simp]: "\<Gamma> x = (t\<^sub>1, t\<^sub>2) \<Longrightarrow> \<Gamma> \<turnstile> Var x : t\<^sub>1 \<rightarrow> t\<^sub>2"
+| tc_var [simp]: "\<Gamma> x = Some (t\<^sub>1, t\<^sub>2) \<Longrightarrow> \<Gamma> \<turnstile> Var x : t\<^sub>1 \<rightarrow> t\<^sub>2"
 
 | tcv_unit [simp]: "\<Gamma> \<turnstile> UnitV : \<one>"
 | tcv_pair [simp]: "\<Gamma> \<turnstile> v\<^sub>1 : t\<^sub>1 \<Longrightarrow> \<Gamma> \<turnstile> v\<^sub>2 : t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> PairV v\<^sub>1 v\<^sub>2 : t\<^sub>1 \<otimes> t\<^sub>2"
@@ -97,8 +97,9 @@ inductive_cases [elim]: "\<Gamma> \<turnstile> InlV v : t"
 inductive_cases [elim]: "\<Gamma> \<turnstile> FunV e : t"
 inductive_cases [elim]: "\<Gamma> \<turnstile> InjV f v : t"
 
-definition typecheck_context :: "(name \<Rightarrow> type \<times> type) \<Rightarrow> (name \<Rightarrow> expr) \<Rightarrow> bool" (infix "\<tturnstile>" 60) where
-  "\<Gamma> \<tturnstile> \<Lambda> = (\<forall>x t\<^sub>1 t\<^sub>2. \<Gamma> x = (t\<^sub>1, t\<^sub>2) \<longrightarrow> \<Gamma> \<turnstile> \<Lambda> x : t\<^sub>1 \<rightarrow> t\<^sub>2)"
+definition typecheck_context :: "(name \<rightharpoonup> type \<times> type) \<Rightarrow> (name \<rightharpoonup> expr) \<Rightarrow> bool" 
+    (infix "\<tturnstile>" 60) where
+  "\<Gamma> \<tturnstile> \<Lambda> = (\<forall>x t\<^sub>1 t\<^sub>2. \<Gamma> x = Some (t\<^sub>1, t\<^sub>2) \<longrightarrow> (\<exists>e. \<Lambda> x = Some e \<and> \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2))"
 
 (* evaluation *)
 
@@ -108,7 +109,7 @@ fun apply_functor_expr :: "expr \<Rightarrow> funct \<Rightarrow> expr" (infixl 
 | "e \<bullet> f\<^sub>1 \<Otimes> f\<^sub>2 = (e \<bullet> f\<^sub>1) \<parallel> (e \<bullet> f\<^sub>2)"
 | "e \<bullet> f\<^sub>1 \<Oplus> f\<^sub>2 = (e \<bullet> f\<^sub>1) \<bar> (e \<bullet> f\<^sub>2)"
 
-inductive evaluate :: "(name \<Rightarrow> expr) \<Rightarrow> expr \<Rightarrow> val \<Rightarrow> expr \<Rightarrow> val \<Rightarrow> bool" 
+inductive evaluate :: "(name \<rightharpoonup> expr) \<Rightarrow> expr \<Rightarrow> val \<Rightarrow> expr \<Rightarrow> val \<Rightarrow> bool" 
     (infix "\<turnstile> _ \<cdot> _ \<leadsto> _ \<cdot>" 60) where
   ev_con [simp]: "\<Lambda> \<turnstile> \<kappa> v\<^sub>1 \<cdot> v\<^sub>2 \<leadsto> \<epsilon> \<cdot> v\<^sub>1"
 | ev_comp1 [simp]: "\<Lambda> \<turnstile> g \<cdot> v \<leadsto> g' \<cdot> v' \<Longrightarrow> \<Lambda> \<turnstile> (f \<cdot> g) \<cdot> v \<leadsto> (f \<cdot> g') \<cdot> v'"
@@ -133,7 +134,7 @@ inductive evaluate :: "(name \<Rightarrow> expr) \<Rightarrow> expr \<Rightarrow
 | ev_outj [simp]: "\<Lambda> \<turnstile> \<prec>\<^bsub>F\<^esub> \<cdot> InjV F v \<leadsto> \<epsilon> \<cdot> v"
 | ev_cata [simp]: "\<Lambda> \<turnstile> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<cdot> v \<leadsto> (f \<cdot> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>F\<^esub>) \<cdot> v"
 | ev_ana [simp]: "\<Lambda> \<turnstile> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<cdot> v \<leadsto> (\<succ>\<^bsub>F\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<cdot> f) \<cdot> v"
-| ev_var [simp]: "\<Lambda> \<turnstile> Var x \<cdot> v \<leadsto> \<Lambda> x \<cdot> v"
+| ev_var [simp]: "\<Lambda> x = Some e \<Longrightarrow> \<Lambda> \<turnstile> Var x \<cdot> v \<leadsto> e \<cdot> v"
 
 (* safety *)
 
@@ -153,7 +154,8 @@ lemma canonical_arrow: "\<Gamma> \<turnstile> v : t\<^sub>1 \<hookrightarrow> t\
 lemma canonical_mu: "\<Gamma> \<turnstile> v : \<mu> F \<Longrightarrow> \<exists>v'. (\<Gamma> \<turnstile> v' : \<mu> F \<star> F) \<and> v = InjV F v'"
   by (cases \<Gamma> v "\<mu> F" rule: typecheck\<^sub>v.cases) simp_all
 
-theorem progress: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> v : t\<^sub>1 \<Longrightarrow> e \<noteq> \<epsilon> \<Longrightarrow> \<exists>e' v'. \<Lambda> \<turnstile> e \<cdot> v \<leadsto> e' \<cdot> v'"
+theorem progress [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> v : t\<^sub>1 \<Longrightarrow> \<Gamma> \<tturnstile> \<Lambda> \<Longrightarrow> e \<noteq> \<epsilon> \<Longrightarrow> 
+    \<exists>e' v'. \<Lambda> \<turnstile> e \<cdot> v \<leadsto> e' \<cdot> v'"
     and "\<Gamma> \<turnstile> v : t\<^sub>1 \<Longrightarrow> True"
   proof (induction \<Gamma> e t\<^sub>1 t\<^sub>2 arbitrary: v rule: typecheck\<^sub>e_typecheck\<^sub>v.inducts)
   case (tc_con \<Gamma> v\<^sub>2 t\<^sub>2 t\<^sub>1)
@@ -262,15 +264,16 @@ theorem progress: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \
   next case (tc_ana \<Gamma> f t F)
     hence "\<Lambda> \<turnstile> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<cdot> v \<leadsto> (\<succ>\<^bsub>F\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<cdot> f) \<cdot> v" by simp
     thus ?case by fastforce
-  next case (tc_var \<Gamma> x)
-    have "\<Lambda> \<turnstile> Var x \<cdot> v \<leadsto> \<Lambda> x \<cdot> v" by simp
+  next case (tc_var \<Gamma> x t\<^sub>1 t\<^sub>2)
+    then obtain e where "\<Lambda> x = Some e \<and> \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2" by (metis typecheck_context_def)
+    hence "\<Lambda> \<turnstile> Var x \<cdot> v \<leadsto> e \<cdot> v" by simp
     thus ?case by fastforce
   qed simp_all
 
 lemma [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> e \<bullet> F : t\<^sub>1 \<star> F \<rightarrow> t\<^sub>2 \<star> F"
   by (induction e F rule: apply_functor_expr.induct) simp_all
 
-theorem preservation: "\<Lambda> \<turnstile> e \<cdot> v \<leadsto> e' \<cdot> v' \<Longrightarrow> \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> v : t\<^sub>1 \<Longrightarrow> \<Gamma> \<tturnstile> \<Lambda> \<Longrightarrow>
+theorem preservation [simp]: "\<Lambda> \<turnstile> e \<cdot> v \<leadsto> e' \<cdot> v' \<Longrightarrow> \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> v : t\<^sub>1 \<Longrightarrow> \<Gamma> \<tturnstile> \<Lambda> \<Longrightarrow>
     \<exists>t\<^sub>3. (\<Gamma> \<turnstile> e' : t\<^sub>3 \<rightarrow> t\<^sub>2) \<and> (\<Gamma> \<turnstile> v' : t\<^sub>3)"
   proof (induction \<Lambda> e v e' v' arbitrary: t\<^sub>1 t\<^sub>2 rule: evaluate.induct)
   case (ev_pair1 \<Lambda> f\<^sub>1 v\<^sub>1 f\<^sub>1' v\<^sub>1' f\<^sub>2 v\<^sub>2)
@@ -338,15 +341,23 @@ theorem preservation: "\<Lambda> \<turnstile> e \<cdot> v \<leadsto> e' \<cdot> 
     moreover from V have "\<Gamma> \<turnstile> f : t\<^sub>1 \<rightarrow> t\<^sub>1 \<star> F" by simp
     ultimately have "\<Gamma> \<turnstile> \<succ>\<^bsub>F\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<cdot> f : t\<^sub>1 \<rightarrow> t\<^sub>2" by simp
     with V show ?case by fastforce
-  next case (ev_var \<Lambda> x v)
-    moreover hence "\<Gamma> x = (t\<^sub>1, t\<^sub>2)" by fastforce
-    ultimately have "\<Gamma> \<turnstile> \<Lambda> x : t\<^sub>1 \<rightarrow> t\<^sub>2" by (simp add: typecheck_context_def)
+  next case (ev_var \<Lambda> x e v)
+    hence "\<Gamma> x = Some (t\<^sub>1, t\<^sub>2)" by fastforce
+    with ev_var obtain e' where "\<Lambda> x = Some e' \<and> \<Gamma> \<turnstile> e' : t\<^sub>1 \<rightarrow> t\<^sub>2" by (metis typecheck_context_def)
     with ev_var show ?case by fastforce
   qed force+
 
+lemma [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> x \<notin> dom \<Gamma> \<Longrightarrow> \<Gamma>(x \<mapsto> tt) \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
+  and [simp]: "\<Gamma> \<turnstile> v : t \<Longrightarrow> x \<notin> dom \<Gamma> \<Longrightarrow> \<Gamma>(x \<mapsto> tt) \<turnstile> v : t"
+  proof (induction \<Gamma> e t\<^sub>1 t\<^sub>2 and \<Gamma> v t rule: typecheck\<^sub>e_typecheck\<^sub>v.inducts) 
+  case (tc_var \<Gamma> y t\<^sub>1 t\<^sub>2)
+    moreover hence "x \<noteq> y" by auto
+    ultimately show ?case by simp
+  qed simp_all
+
 (* big-step evaluation *) 
 
-inductive total_eval :: "(name \<Rightarrow> expr) \<Rightarrow> expr \<Rightarrow> val \<Rightarrow> val \<Rightarrow> bool" (infix "\<turnstile> _ \<cdot> _ \<Down>" 60) where
+inductive total_eval :: "(name \<rightharpoonup> expr) \<Rightarrow> expr \<Rightarrow> val \<Rightarrow> val \<Rightarrow> bool" (infix "\<turnstile> _ \<cdot> _ \<Down>" 60) where
   tev_base [simp]: "\<Lambda> \<turnstile> \<epsilon> \<cdot> v \<Down> v"
 | tev_step [simp]: "\<Lambda> \<turnstile> e \<cdot> v \<leadsto> e' \<cdot> v' \<Longrightarrow> \<Lambda> \<turnstile> e' \<cdot> v' \<Down> v'' \<Longrightarrow> \<Lambda> \<turnstile> e \<cdot> v \<Down> v''"
 
@@ -413,7 +424,7 @@ lemma [simp]: "\<Lambda> \<turnstile> f\<^sub>r \<cdot> v \<Down> v' \<Longright
 
 (* since we are a turing-complete language, total progress is not provable *)
 
-theorem total_preservation: "\<Lambda> \<turnstile> e \<cdot> v \<Down> v' \<Longrightarrow> \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> v : t\<^sub>1 \<Longrightarrow> \<Gamma> \<tturnstile> \<Lambda> \<Longrightarrow> 
+theorem total_preservation [simp]: "\<Lambda> \<turnstile> e \<cdot> v \<Down> v' \<Longrightarrow> \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> v : t\<^sub>1 \<Longrightarrow> \<Gamma> \<tturnstile> \<Lambda> \<Longrightarrow> 
     \<Gamma> \<turnstile> v' : t\<^sub>2"
   proof (induction \<Lambda> e v v' arbitrary: t\<^sub>1 rule: total_eval.induct)
   case (tev_step \<Lambda> e v e' v' v'')
