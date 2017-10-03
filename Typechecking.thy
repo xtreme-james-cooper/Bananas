@@ -1,5 +1,5 @@
 theory Typechecking
-imports BananasExpression Unification
+imports BananasProgram Unification
 begin
 
 datatype flat_type = UNIT| TIMES | PLUS | ARROW | MU | IDF | CONSTF | TIMESF | PLUSF
@@ -123,11 +123,30 @@ primrec assemble_constraints\<^sub>e :: "flat_type expression \<Rightarrow> flat
     let (cs, free') = assemble_constraints\<^sub>v (flatten_type (\<mu> F \<star> F)) free v
     in ((x, flatten_type (\<mu> F)) # cs, free'))"
 
-fun algorithmic_typecheck :: "expr \<Rightarrow> type option" where
-  "algorithmic_typecheck e = 
+fun algorithmic_typecheck\<^sub>e :: "(name \<rightharpoonup> type \<times> type) \<Rightarrow> expr \<Rightarrow> (type \<times> type) option" where
+  "algorithmic_typecheck\<^sub>e \<Gamma> e = 
     Option.bind (unify' (fst (assemble_constraints\<^sub>e (VAR 0) (VAR 1) 2 e))) (\<lambda>\<phi>. 
       Option.bind (inflate_type (subst\<^sub>\<Theta> \<phi> 0)) (\<lambda>t\<^sub>1. 
         Option.bind (inflate_type (subst\<^sub>\<Theta> \<phi> 1)) (\<lambda>t\<^sub>2. 
-          Some (t\<^sub>1 \<hookrightarrow> t\<^sub>2))))"
+          Some (t\<^sub>1, t\<^sub>2))))"
+
+fun algorithmic_typecheck\<^sub>v :: "(name \<rightharpoonup> type \<times> type) \<Rightarrow> val \<Rightarrow> type option" where
+  "algorithmic_typecheck\<^sub>v \<Gamma> v = 
+    Option.bind (unify' (fst (assemble_constraints\<^sub>v (VAR 0) 1 v))) (\<lambda>\<phi>. 
+      inflate_type (subst\<^sub>\<Theta> \<phi> 0))"
+
+primrec algorithmic_typecheck\<^sub>d :: "(name \<rightharpoonup> type \<times> type) \<Rightarrow> decl \<Rightarrow> (name \<rightharpoonup> type \<times> type) option" 
+    where
+  "algorithmic_typecheck\<^sub>d \<Gamma> (TypeDecl x F) = Some \<Gamma>"
+| "algorithmic_typecheck\<^sub>d \<Gamma> (ExprDecl x e) = 
+    Option.bind (algorithmic_typecheck\<^sub>e \<Gamma> e) (\<lambda>(t\<^sub>1, t\<^sub>2). 
+      Some (\<Gamma>(x \<mapsto> (t\<^sub>1, t\<^sub>2))))"
+
+primrec algorithmic_typecheck\<^sub>p :: "prog \<Rightarrow> type option" where
+  "algorithmic_typecheck\<^sub>p (Prog \<Lambda> e v) = 
+    Option.bind (foldl (\<lambda>\<Gamma> d. Option.bind \<Gamma> (\<lambda>\<Gamma>. algorithmic_typecheck\<^sub>d \<Gamma> d)) (Some Map.empty) \<Lambda>) (\<lambda>\<Gamma>.
+      Option.bind (algorithmic_typecheck\<^sub>e \<Gamma> e) (\<lambda>(t\<^sub>1, t\<^sub>2). 
+        Option.bind (algorithmic_typecheck\<^sub>v \<Gamma> v) (\<lambda>t\<^sub>3. 
+          if t\<^sub>1 = t\<^sub>3 then Some t\<^sub>2 else None)))"
 
 end

@@ -133,11 +133,11 @@ theorem preservation [simp]: "\<Pi> \<leadsto> \<Pi>' \<Longrightarrow> \<Pi> \<
 (* big step evaluation *)
 
 inductive total_evaluate_prog :: "prog \<Rightarrow> val \<Rightarrow> bool" (infix "\<Down>" 60) where
-  tev_base [simp]: "Prog \<Lambda> \<epsilon> v \<Down> v"
-| tev_step [simp]: "Prog \<Lambda> e v \<leadsto> Prog \<Lambda> e' v' \<Longrightarrow> Prog \<Lambda> e' v' \<Down> v'' \<Longrightarrow> Prog \<Lambda> e v \<Down> v''"
+  ptev_base [simp]: "Prog \<Lambda> \<epsilon> v \<Down> v"
+| ptev_step [simp]: "Prog \<Lambda> e v \<leadsto> Prog \<Lambda> e' v' \<Longrightarrow> Prog \<Lambda> e' v' \<Down> v'' \<Longrightarrow> Prog \<Lambda> e v \<Down> v''"
 
 inductive total_evaluate_prog' :: "prog \<Rightarrow> val \<Rightarrow> bool" (infix "\<Down>\<Down>" 60) where
-  tev_step' [simp]: "assemble_context \<Lambda> \<turnstile> e \<cdot> v \<Down> v' \<Longrightarrow> Prog \<Lambda> e v \<Down>\<Down> v'"
+  ptev_step' [simp]: "assemble_context \<Lambda> \<turnstile> e \<cdot> v \<Down> v' \<Longrightarrow> Prog \<Lambda> e v \<Down>\<Down> v'"
 
 inductive_cases [elim]: "Prog \<Lambda> e v \<Down>\<Down> v'"
 
@@ -148,12 +148,12 @@ lemma [simp]: "\<Pi> \<Down> v = \<Pi> \<Down>\<Down> v"
     assume "\<Pi> \<Down>\<Down> v"
     thus "\<Pi> \<Down> v"
       proof (induction \<Pi> v rule: total_evaluate_prog'.induct)
-      case (tev_step' \<Lambda> e v v')
+      case (ptev_step' \<Lambda> e v v')
         thus ?case 
           proof (induction "assemble_context \<Lambda>" e v v' rule: total_eval.induct)
           case (tev_step e v e' v' v'')
             moreover hence "Prog \<Lambda> e v \<leadsto> Prog \<Lambda> e' v'" by simp
-            ultimately show ?case by (metis total_evaluate_prog.tev_step)
+            ultimately show ?case by (metis total_evaluate_prog.ptev_step)
           qed simp_all
       qed
   qed

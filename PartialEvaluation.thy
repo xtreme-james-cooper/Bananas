@@ -1,5 +1,5 @@
 theory PartialEvaluation
-imports BananasExpression
+imports BananasProgram
 begin
 
 fun partial_evaluation :: "(name \<rightharpoonup> expr) \<Rightarrow> nat \<Rightarrow> expr \<Rightarrow> val \<Rightarrow> val option" where
@@ -46,7 +46,12 @@ fun partial_evaluation :: "(name \<rightharpoonup> expr) \<Rightarrow> nat \<Rig
       Some e \<Rightarrow> partial_evaluation \<Lambda> n e v 
     | None \<Rightarrow> None )"
 
-theorem soundness: "partial_evaluation \<Lambda> n e v = Some v' \<Longrightarrow> \<Lambda> \<turnstile> e \<cdot> v \<Down> v'"
+primrec partial_eval_prog :: "nat \<Rightarrow> prog \<Rightarrow> val option" where
+  "partial_eval_prog n (Prog \<Lambda> e v) = partial_evaluation (assemble_context \<Lambda>) n e v"
+
+(* correctness *)
+
+lemma soundness': "partial_evaluation \<Lambda> n e v = Some v' \<Longrightarrow> \<Lambda> \<turnstile> e \<cdot> v \<Down> v'"
   proof (induction \<Lambda> n e v arbitrary: v' rule: partial_evaluation.induct)
   case 3
     thus ?case by (simp split: option.splits) fastforce
@@ -144,7 +149,7 @@ lemma pev_larger [elim]: "partial_evaluation \<Lambda> n e v = Some v' \<Longrig
       qed simp_all
   qed simp_all
 
-theorem completeness: "\<Lambda> \<turnstile> e \<cdot> v \<Down> v' \<Longrightarrow> \<exists>n. partial_evaluation \<Lambda> n e v = Some v'"
+lemma completeness': "\<Lambda> \<turnstile> e \<cdot> v \<Down> v' \<Longrightarrow> \<exists>n. partial_evaluation \<Lambda> n e v = Some v'"
   proof (induction \<Lambda> e v v' rule: total_eval.induct)
   case (tev_step \<Lambda> e v e' v' v'')
     thus ?case
@@ -152,7 +157,7 @@ theorem completeness: "\<Lambda> \<turnstile> e \<cdot> v \<Down> v' \<Longright
       case (ev_comp1 \<Lambda> g v g' v' f)
         moreover then obtain n v\<^sub>1 where N: "partial_evaluation \<Lambda> n g' v' = Some v\<^sub>1 \<and> 
           partial_evaluation \<Lambda> n f v\<^sub>1 = Some v''" by (auto split: option.splits)
-        moreover hence "\<Lambda> \<turnstile> g' \<cdot> v' \<Down> v\<^sub>1" by (metis soundness)
+        moreover hence "\<Lambda> \<turnstile> g' \<cdot> v' \<Down> v\<^sub>1" by (metis soundness')
         ultimately obtain m where M: "partial_evaluation \<Lambda> m g v = Some v\<^sub>1" by auto
         have "max n m \<ge> m \<and> max n m \<ge> n" by simp
         with M N have "partial_evaluation \<Lambda> (max n m) f v\<^sub>1 = Some v'' \<and> 
@@ -197,5 +202,11 @@ theorem completeness: "\<Lambda> \<turnstile> e \<cdot> v \<Down> v' \<Longright
         thus ?case by fastforce
       qed auto 
   qed simp_all
+
+theorem soundness: "partial_eval_prog n \<Pi> = Some v \<Longrightarrow> \<Pi> \<Down> v"
+  by (induction \<Pi>) (simp add: soundness')
+
+theorem completeness: "\<Pi> \<Down> v \<Longrightarrow> \<exists>n. partial_eval_prog n \<Pi> = Some v"
+  by (simp, induction \<Pi> v rule: total_evaluate_prog'.induct) (simp add: completeness')
 
 end
