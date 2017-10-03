@@ -47,32 +47,32 @@ primrec list_to_val :: "type \<Rightarrow> val list \<Rightarrow> val" where
 abbreviation long_run :: nat where
   "long_run \<equiv> Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc 0)))))))))))"
 
-lemma "partial_evaluation long_run is_zero_expr ZeroV = Some TrueV"
+lemma "partial_evaluation \<Lambda> long_run is_zero_expr ZeroV = Some TrueV"
   by (simp add: is_zero_expr_def)
 
-lemma "partial_evaluation long_run is_zero_expr (SuccV ZeroV) = Some FalseV"
+lemma "partial_evaluation \<Lambda> long_run is_zero_expr (SuccV ZeroV) = Some FalseV"
   by (simp add: is_zero_expr_def)
 
-lemma "partial_evaluation long_run is_zero_expr (SuccV (SuccV ZeroV)) = Some FalseV"
+lemma "partial_evaluation \<Lambda> long_run is_zero_expr (SuccV (SuccV ZeroV)) = Some FalseV"
   by (simp add: is_zero_expr_def)
 
-lemma "partial_evaluation long_run pred_expr ZeroV = Some ZeroV"
+lemma "partial_evaluation \<Lambda> long_run pred_expr ZeroV = Some ZeroV"
   by (simp add: pred_expr_def)
 
-lemma "partial_evaluation long_run pred_expr (SuccV ZeroV) = Some ZeroV"
+lemma "partial_evaluation \<Lambda> long_run pred_expr (SuccV ZeroV) = Some ZeroV"
   by (simp add: pred_expr_def)
 
-lemma "partial_evaluation long_run pred_expr (SuccV (SuccV ZeroV)) = Some (SuccV ZeroV)"
+lemma "partial_evaluation \<Lambda> long_run pred_expr (SuccV (SuccV ZeroV)) = Some (SuccV ZeroV)"
   by (simp add: pred_expr_def)
 
-lemma "partial_evaluation long_run length\<^bsub>t\<^esub> (list_to_val t [a, b, c]) = 
+lemma "partial_evaluation \<Lambda> long_run length\<^bsub>t\<^esub> (list_to_val t [a, b, c]) = 
     Some (nat_to_val (Suc (Suc (Suc 0))))"
   by (simp add: length_expr_def)
 
-lemma "partial_evaluation long_run greater_than_expr (PairV (SuccV (SuccV ZeroV)) (SuccV ZeroV)) = Some TrueV"
+lemma "partial_evaluation \<Lambda> long_run greater_than_expr (PairV (SuccV (SuccV ZeroV)) (SuccV ZeroV)) = Some TrueV"
   by (simp add: greater_than_expr_def greater_than_helper_def is_zero_expr_def pred_expr_def)
 
-lemma "partial_evaluation long_run greater_than_expr (PairV (SuccV ZeroV) (SuccV (SuccV ZeroV))) = Some FalseV"
+lemma "partial_evaluation \<Lambda> long_run greater_than_expr (PairV (SuccV ZeroV) (SuccV (SuccV ZeroV))) = Some FalseV"
   by (simp add: greater_than_expr_def greater_than_helper_def is_zero_expr_def pred_expr_def)
 
 end

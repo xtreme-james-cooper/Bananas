@@ -138,95 +138,95 @@ lemma [simp]: "\<Gamma> \<turnstile> p : t\<^sub>1 \<rightarrow> Bool \<Longrigh
 lemma [simp]: "\<Gamma> \<turnstile> not : Bool \<rightarrow> Bool"
   by simp
 
-lemma [simp]: "f\<^sub>1 \<cdot> v \<Down> v\<^sub>1 \<Longrightarrow> f\<^sub>2 \<cdot> v \<Down> v\<^sub>2 \<Longrightarrow> f\<^sub>1 \<triangle> f\<^sub>2 \<cdot> v \<Down> PairV v\<^sub>1 v\<^sub>2"
+lemma [simp]: "\<Lambda> \<turnstile> f\<^sub>1 \<cdot> v \<Down> v\<^sub>1 \<Longrightarrow> \<Lambda> \<turnstile> f\<^sub>2 \<cdot> v \<Down> v\<^sub>2 \<Longrightarrow> \<Lambda> \<turnstile> f\<^sub>1 \<triangle> f\<^sub>2 \<cdot> v \<Down> PairV v\<^sub>1 v\<^sub>2"
   proof -
-    assume "f\<^sub>1 \<cdot> v \<Down> v\<^sub>1"
-       and "f\<^sub>2 \<cdot> v \<Down> v\<^sub>2"
-    moreover have "\<Theta> \<cdot> v \<Down> PairV v v" by simp
-    ultimately show "(f\<^sub>1 \<parallel> f\<^sub>2 \<cdot> \<Theta>) \<cdot> v \<Down> PairV v\<^sub>1 v\<^sub>2" by fastforce
+    assume "\<Lambda> \<turnstile> f\<^sub>1 \<cdot> v \<Down> v\<^sub>1"
+       and "\<Lambda> \<turnstile> f\<^sub>2 \<cdot> v \<Down> v\<^sub>2"
+    moreover have "\<Lambda> \<turnstile> \<Theta> \<cdot> v \<Down> PairV v v" by simp
+    ultimately show "\<Lambda> \<turnstile> (f\<^sub>1 \<parallel> f\<^sub>2 \<cdot> \<Theta>) \<cdot> v \<Down> PairV v\<^sub>1 v\<^sub>2" by fastforce
   qed
 
-lemma [simp]: "f\<^sub>l \<cdot> v \<Down> v' \<Longrightarrow> f\<^sub>l \<nabla> f\<^sub>r \<cdot> InlV v \<Down> v'"
+lemma [simp]: "\<Lambda> \<turnstile> f\<^sub>l \<cdot> v \<Down> v' \<Longrightarrow> \<Lambda> \<turnstile> f\<^sub>l \<nabla> f\<^sub>r \<cdot> InlV v \<Down> v'"
   proof -
-    assume "f\<^sub>l \<cdot> v \<Down> v'"
-    hence "f\<^sub>l \<bar> f\<^sub>r \<cdot> InlV v \<Down> InlV v'" by simp
-    thus "(\<Xi> \<cdot> f\<^sub>l \<bar> f\<^sub>r) \<cdot> InlV v \<Down> v'" by fastforce
+    assume "\<Lambda> \<turnstile> f\<^sub>l \<cdot> v \<Down> v'"
+    hence "\<Lambda> \<turnstile> f\<^sub>l \<bar> f\<^sub>r \<cdot> InlV v \<Down> InlV v'" by simp
+    thus "\<Lambda> \<turnstile> (\<Xi> \<cdot> f\<^sub>l \<bar> f\<^sub>r) \<cdot> InlV v \<Down> v'" by fastforce
   qed
 
-lemma [simp]: "f\<^sub>r \<cdot> v \<Down> v' \<Longrightarrow> f\<^sub>l \<nabla> f\<^sub>r \<cdot> InrV v \<Down> v'"
+lemma [simp]: "\<Lambda> \<turnstile> f\<^sub>r \<cdot> v \<Down> v' \<Longrightarrow> \<Lambda> \<turnstile> f\<^sub>l \<nabla> f\<^sub>r \<cdot> InrV v \<Down> v'"
   proof -
-    assume "f\<^sub>r \<cdot> v \<Down> v'"
-    hence "f\<^sub>l \<bar> f\<^sub>r \<cdot> InrV v \<Down> InrV v'" by simp
-    thus "(\<Xi> \<cdot> f\<^sub>l \<bar> f\<^sub>r) \<cdot> InrV v \<Down> v'" by fastforce
+    assume "\<Lambda> \<turnstile> f\<^sub>r \<cdot> v \<Down> v'"
+    hence "\<Lambda> \<turnstile> f\<^sub>l \<bar> f\<^sub>r \<cdot> InrV v \<Down> InrV v'" by simp
+    thus "\<Lambda> \<turnstile> (\<Xi> \<cdot> f\<^sub>l \<bar> f\<^sub>r) \<cdot> InrV v \<Down> v'" by fastforce
   qed
 
-lemma [simp]: "p \<cdot> v \<Down> TrueV \<Longrightarrow> p? \<cdot> v \<Down> InlV v"
+lemma [simp]: "\<Lambda> \<turnstile> p \<cdot> v \<Down> TrueV \<Longrightarrow> \<Lambda> \<turnstile> p? \<cdot> v \<Down> InlV v"
   proof -
-    have "\<Theta> \<cdot> v \<Down> PairV v v" by simp
-    moreover assume "p \<cdot> v \<Down> TrueV"
-    moreover hence "(p \<parallel> \<epsilon>) \<cdot> PairV v v \<Down> PairV TrueV v" by simp
-    ultimately have "(p \<parallel> \<epsilon> \<cdot> \<Theta>) \<cdot> v \<Down> PairV TrueV v" by fastforce
-    moreover have "\<rhd> \<cdot> PairV TrueV v \<Down> InlV (PairV UnitV v)" by simp
-    ultimately have "(\<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta>) \<cdot> v \<Down> InlV (PairV UnitV v)" by fastforce
-    moreover have "(\<pi>\<^sub>2 \<bar> \<pi>\<^sub>2) \<cdot> InlV (PairV UnitV v) \<Down> InlV v" by simp
-    ultimately show "(\<pi>\<^sub>2 \<bar> \<pi>\<^sub>2 \<cdot> \<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta>) \<cdot> v \<Down> InlV v" by fastforce
+    have "\<Lambda> \<turnstile> \<Theta> \<cdot> v \<Down> PairV v v" by simp
+    moreover assume "\<Lambda> \<turnstile> p \<cdot> v \<Down> TrueV"
+    moreover hence "\<Lambda> \<turnstile> (p \<parallel> \<epsilon>) \<cdot> PairV v v \<Down> PairV TrueV v" by simp
+    ultimately have "\<Lambda> \<turnstile> (p \<parallel> \<epsilon> \<cdot> \<Theta>) \<cdot> v \<Down> PairV TrueV v" by fastforce
+    moreover have "\<Lambda> \<turnstile> \<rhd> \<cdot> PairV TrueV v \<Down> InlV (PairV UnitV v)" by simp
+    ultimately have "\<Lambda> \<turnstile> (\<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta>) \<cdot> v \<Down> InlV (PairV UnitV v)" by fastforce
+    moreover have "\<Lambda> \<turnstile> (\<pi>\<^sub>2 \<bar> \<pi>\<^sub>2) \<cdot> InlV (PairV UnitV v) \<Down> InlV v" by simp
+    ultimately show "\<Lambda> \<turnstile> (\<pi>\<^sub>2 \<bar> \<pi>\<^sub>2 \<cdot> \<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta>) \<cdot> v \<Down> InlV v" by fastforce
   qed
 
-lemma [simp]: "p \<cdot> v \<Down> FalseV \<Longrightarrow> p? \<cdot> v \<Down> InrV v"
+lemma [simp]: "\<Lambda> \<turnstile> p \<cdot> v \<Down> FalseV \<Longrightarrow> \<Lambda> \<turnstile> p? \<cdot> v \<Down> InrV v"
   proof -
-    have "\<Theta> \<cdot> v \<Down> PairV v v" by simp
-    moreover assume "p \<cdot> v \<Down> FalseV"
-    moreover hence "(p \<parallel> \<epsilon>) \<cdot> PairV v v \<Down> PairV FalseV v" by simp
-    ultimately have "(p \<parallel> \<epsilon> \<cdot> \<Theta>) \<cdot> v \<Down> PairV FalseV v" by fastforce
-    moreover have "\<rhd> \<cdot> PairV FalseV v \<Down> InrV (PairV UnitV v)" by simp
-    ultimately have "(\<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta>) \<cdot> v \<Down> InrV (PairV UnitV v)" by fastforce
-    moreover have "(\<pi>\<^sub>2 \<bar> \<pi>\<^sub>2) \<cdot> InrV (PairV UnitV v) \<Down> InrV v" by simp
-    ultimately show "(\<pi>\<^sub>2 \<bar> \<pi>\<^sub>2 \<cdot> \<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta>) \<cdot> v \<Down> InrV v" by fastforce
+    have "\<Lambda> \<turnstile> \<Theta> \<cdot> v \<Down> PairV v v" by simp
+    moreover assume "\<Lambda> \<turnstile> p \<cdot> v \<Down> FalseV"
+    moreover hence "\<Lambda> \<turnstile> (p \<parallel> \<epsilon>) \<cdot> PairV v v \<Down> PairV FalseV v" by simp
+    ultimately have "\<Lambda> \<turnstile> (p \<parallel> \<epsilon> \<cdot> \<Theta>) \<cdot> v \<Down> PairV FalseV v" by fastforce
+    moreover have "\<Lambda> \<turnstile> \<rhd> \<cdot> PairV FalseV v \<Down> InrV (PairV UnitV v)" by simp
+    ultimately have "\<Lambda> \<turnstile> (\<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta>) \<cdot> v \<Down> InrV (PairV UnitV v)" by fastforce
+    moreover have "\<Lambda> \<turnstile> (\<pi>\<^sub>2 \<bar> \<pi>\<^sub>2) \<cdot> InrV (PairV UnitV v) \<Down> InrV v" by simp
+    ultimately show "\<Lambda> \<turnstile> (\<pi>\<^sub>2 \<bar> \<pi>\<^sub>2 \<cdot> \<rhd> \<cdot> p \<parallel> \<epsilon> \<cdot> \<Theta>) \<cdot> v \<Down> InrV v" by fastforce
   qed
 
-lemma [simp]: "\<bowtie> \<cdot> PairV v\<^sub>1 v\<^sub>2 \<Down> PairV v\<^sub>2 v\<^sub>1"
+lemma [simp]: "\<Lambda> \<turnstile> \<bowtie> \<cdot> PairV v\<^sub>1 v\<^sub>2 \<Down> PairV v\<^sub>2 v\<^sub>1"
   by simp
 
-lemma [simp]: "\<lhd> \<cdot> PairV v\<^sub>1 (InlV v\<^sub>2) \<Down> InlV (PairV v\<^sub>1 v\<^sub>2)"
+lemma [simp]: "\<Lambda> \<turnstile> \<lhd> \<cdot> PairV v\<^sub>1 (InlV v\<^sub>2) \<Down> InlV (PairV v\<^sub>1 v\<^sub>2)"
   proof -
-    have "\<bowtie> \<cdot> PairV v\<^sub>1 (InlV v\<^sub>2) \<Down> PairV (InlV v\<^sub>2) v\<^sub>1" by simp
-    moreover have "\<rhd> \<cdot> PairV (InlV v\<^sub>2) v\<^sub>1 \<Down> InlV (PairV v\<^sub>2 v\<^sub>1)" by simp
-    ultimately have "(\<rhd> \<cdot> \<bowtie>) \<cdot> PairV v\<^sub>1 (InlV v\<^sub>2) \<Down> InlV (PairV v\<^sub>2 v\<^sub>1)" by fastforce
-    moreover have "\<bowtie> \<bar> \<bowtie> \<cdot> InlV (PairV v\<^sub>2 v\<^sub>1) \<Down> InlV (PairV v\<^sub>1 v\<^sub>2)" by simp
-    ultimately show "(\<bowtie> \<bar> \<bowtie> \<cdot> \<rhd> \<cdot> \<bowtie>) \<cdot> PairV v\<^sub>1 (InlV v\<^sub>2) \<Down> InlV (PairV v\<^sub>1 v\<^sub>2)" by fastforce
+    have "\<Lambda> \<turnstile> \<bowtie> \<cdot> PairV v\<^sub>1 (InlV v\<^sub>2) \<Down> PairV (InlV v\<^sub>2) v\<^sub>1" by simp
+    moreover have "\<Lambda> \<turnstile> \<rhd> \<cdot> PairV (InlV v\<^sub>2) v\<^sub>1 \<Down> InlV (PairV v\<^sub>2 v\<^sub>1)" by simp
+    ultimately have "\<Lambda> \<turnstile> (\<rhd> \<cdot> \<bowtie>) \<cdot> PairV v\<^sub>1 (InlV v\<^sub>2) \<Down> InlV (PairV v\<^sub>2 v\<^sub>1)" by fastforce
+    moreover have "\<Lambda> \<turnstile> \<bowtie> \<bar> \<bowtie> \<cdot> InlV (PairV v\<^sub>2 v\<^sub>1) \<Down> InlV (PairV v\<^sub>1 v\<^sub>2)" by simp
+    ultimately show "\<Lambda> \<turnstile> (\<bowtie> \<bar> \<bowtie> \<cdot> \<rhd> \<cdot> \<bowtie>) \<cdot> PairV v\<^sub>1 (InlV v\<^sub>2) \<Down> InlV (PairV v\<^sub>1 v\<^sub>2)" by fastforce
   qed
 
-lemma [simp]: "\<lhd> \<cdot> PairV v\<^sub>1 (InrV v\<^sub>2) \<Down> InrV (PairV v\<^sub>1 v\<^sub>2)"
+lemma [simp]: "\<Lambda> \<turnstile> \<lhd> \<cdot> PairV v\<^sub>1 (InrV v\<^sub>2) \<Down> InrV (PairV v\<^sub>1 v\<^sub>2)"
   proof -
-    have "\<bowtie> \<cdot> PairV v\<^sub>1 (InrV v\<^sub>2) \<Down> PairV (InrV v\<^sub>2) v\<^sub>1" by simp
-    moreover have "\<rhd> \<cdot> PairV (InrV v\<^sub>2) v\<^sub>1 \<Down> InrV (PairV v\<^sub>2 v\<^sub>1)" by simp
-    ultimately have "(\<rhd> \<cdot> \<bowtie>) \<cdot> PairV v\<^sub>1 (InrV v\<^sub>2) \<Down> InrV (PairV v\<^sub>2 v\<^sub>1)" by fastforce
-    moreover have "\<bowtie> \<bar> \<bowtie> \<cdot> InrV (PairV v\<^sub>2 v\<^sub>1) \<Down> InrV (PairV v\<^sub>1 v\<^sub>2)" by simp
-    ultimately show "(\<bowtie> \<bar> \<bowtie> \<cdot> \<rhd> \<cdot> \<bowtie>) \<cdot> PairV v\<^sub>1 (InrV v\<^sub>2) \<Down> InrV (PairV v\<^sub>1 v\<^sub>2)" by fastforce
+    have "\<Lambda> \<turnstile> \<bowtie> \<cdot> PairV v\<^sub>1 (InrV v\<^sub>2) \<Down> PairV (InrV v\<^sub>2) v\<^sub>1" by simp
+    moreover have "\<Lambda> \<turnstile> \<rhd> \<cdot> PairV (InrV v\<^sub>2) v\<^sub>1 \<Down> InrV (PairV v\<^sub>2 v\<^sub>1)" by simp
+    ultimately have "\<Lambda> \<turnstile> (\<rhd> \<cdot> \<bowtie>) \<cdot> PairV v\<^sub>1 (InrV v\<^sub>2) \<Down> InrV (PairV v\<^sub>2 v\<^sub>1)" by fastforce
+    moreover have "\<Lambda> \<turnstile> \<bowtie> \<bar> \<bowtie> \<cdot> InrV (PairV v\<^sub>2 v\<^sub>1) \<Down> InrV (PairV v\<^sub>1 v\<^sub>2)" by simp
+    ultimately show "\<Lambda> \<turnstile> (\<bowtie> \<bar> \<bowtie> \<cdot> \<rhd> \<cdot> \<bowtie>) \<cdot> PairV v\<^sub>1 (InrV v\<^sub>2) \<Down> InrV (PairV v\<^sub>1 v\<^sub>2)" by fastforce
   qed
 
-lemma [simp]: "p \<cdot> v \<Down> TrueV \<Longrightarrow> e\<^sub>t \<cdot> v \<Down> v' \<Longrightarrow> IF p THEN e\<^sub>t ELSE e\<^sub>f FI \<cdot> v \<Down> v'"
+lemma [simp]: "\<Lambda> \<turnstile> p \<cdot> v \<Down> TrueV \<Longrightarrow> \<Lambda> \<turnstile> e\<^sub>t \<cdot> v \<Down> v' \<Longrightarrow> \<Lambda> \<turnstile> IF p THEN e\<^sub>t ELSE e\<^sub>f FI \<cdot> v \<Down> v'"
   proof -
-    assume "p \<cdot> v \<Down> TrueV" 
-    hence X: "p? \<cdot> v \<Down> InlV v" by simp
-    assume "e\<^sub>t \<cdot> v \<Down> v'"
-    hence "e\<^sub>t \<nabla> e\<^sub>f \<cdot> InlV v \<Down> v'" by simp
-    with X show "IF p THEN e\<^sub>t ELSE e\<^sub>f FI \<cdot> v \<Down> v'" by fastforce
+    assume "\<Lambda> \<turnstile> p \<cdot> v \<Down> TrueV" 
+    hence X: "\<Lambda> \<turnstile> p? \<cdot> v \<Down> InlV v" by simp
+    assume "\<Lambda> \<turnstile> e\<^sub>t \<cdot> v \<Down> v'"
+    hence "\<Lambda> \<turnstile> e\<^sub>t \<nabla> e\<^sub>f \<cdot> InlV v \<Down> v'" by simp
+    with X show "\<Lambda> \<turnstile> IF p THEN e\<^sub>t ELSE e\<^sub>f FI \<cdot> v \<Down> v'" by fastforce
   qed
 
-lemma [simp]: "p \<cdot> v \<Down> FalseV \<Longrightarrow> e\<^sub>f \<cdot> v \<Down> v' \<Longrightarrow> IF p THEN e\<^sub>t ELSE e\<^sub>f FI \<cdot> v \<Down> v'"
+lemma [simp]: "\<Lambda> \<turnstile> p \<cdot> v \<Down> FalseV \<Longrightarrow> \<Lambda> \<turnstile> e\<^sub>f \<cdot> v \<Down> v' \<Longrightarrow> \<Lambda> \<turnstile> IF p THEN e\<^sub>t ELSE e\<^sub>f FI \<cdot> v \<Down> v'"
   proof -
-    assume "p \<cdot> v \<Down> FalseV" 
-    hence X: "p? \<cdot> v \<Down> InrV v" by simp
-    assume "e\<^sub>f \<cdot> v \<Down> v'"
-    hence "e\<^sub>t \<nabla> e\<^sub>f \<cdot> InrV v \<Down> v'" by simp
-    with X show "IF p THEN e\<^sub>t ELSE e\<^sub>f FI \<cdot> v \<Down> v'" by fastforce
+    assume "\<Lambda> \<turnstile> p \<cdot> v \<Down> FalseV" 
+    hence X: "\<Lambda> \<turnstile> p? \<cdot> v \<Down> InrV v" by simp
+    assume "\<Lambda> \<turnstile> e\<^sub>f \<cdot> v \<Down> v'"
+    hence "\<Lambda> \<turnstile> e\<^sub>t \<nabla> e\<^sub>f \<cdot> InrV v \<Down> v'" by simp
+    with X show "\<Lambda> \<turnstile> IF p THEN e\<^sub>t ELSE e\<^sub>f FI \<cdot> v \<Down> v'" by fastforce
   qed
 
-lemma [simp]: "not \<cdot> TrueV \<Down> FalseV"
+lemma [simp]: "\<Lambda> \<turnstile> not \<cdot> TrueV \<Down> FalseV"
   by simp
 
-lemma [simp]: "not \<cdot> FalseV \<Down> TrueV"
+lemma [simp]: "\<Lambda> \<turnstile> not \<cdot> FalseV \<Down> TrueV"
   by simp
 
 end
