@@ -362,14 +362,6 @@ theorem preservation [simp]: "\<Lambda> & \<Sigma> \<turnstile> e \<cdot> v \<le
     with ev_var show ?case by fastforce
   qed force+
 
-lemma [simp]: "\<Gamma> & \<Sigma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> x \<notin> dom \<Gamma> \<Longrightarrow> \<Gamma>(x \<mapsto> tt) & \<Sigma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
-  and [simp]: "\<Gamma> & \<Sigma> \<turnstile> v : t \<Longrightarrow> x \<notin> dom \<Gamma> \<Longrightarrow> \<Gamma>(x \<mapsto> tt) & \<Sigma> \<turnstile> v : t"
-  proof (induction \<Gamma> \<Sigma> e t\<^sub>1 t\<^sub>2 and \<Gamma> \<Sigma> v t rule: typecheck\<^sub>e_typecheck\<^sub>v.inducts) 
-  case (tc_var \<Gamma> y t\<^sub>1 t\<^sub>2)
-    moreover hence "x \<noteq> y" by auto
-    ultimately show ?case by simp
-  qed simp_all
-
 (* big-step evaluation *) 
 
 inductive total_eval :: "(name \<rightharpoonup> expr) \<Rightarrow> (name \<rightharpoonup> funct) \<Rightarrow> expr \<Rightarrow> val \<Rightarrow> val \<Rightarrow> bool" 
@@ -449,5 +441,96 @@ theorem total_preservation [simp]: "\<Lambda> & \<Sigma> \<turnstile> e \<cdot> 
       by (metis preservation)
     ultimately show ?case by fastforce
   qed auto
+
+(* misc lemmas *)
+
+lemma [simp]: "\<Gamma> & \<Sigma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> x \<notin> dom \<Gamma> \<Longrightarrow> \<Gamma>(x \<mapsto> tt) & \<Sigma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
+  and [simp]: "\<Gamma> & \<Sigma> \<turnstile> v : t \<Longrightarrow> x \<notin> dom \<Gamma> \<Longrightarrow> \<Gamma>(x \<mapsto> tt) & \<Sigma> \<turnstile> v : t"
+  proof (induction \<Gamma> \<Sigma> e t\<^sub>1 t\<^sub>2 and \<Gamma> \<Sigma> v t rule: typecheck\<^sub>e_typecheck\<^sub>v.inducts) 
+  case (tc_var \<Gamma> y t\<^sub>1 t\<^sub>2)
+    moreover hence "x \<noteq> y" by auto
+    ultimately show ?case by simp
+  qed simp_all
+
+lemma [simp]: "\<Gamma> & \<Sigma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma>' ++ \<Gamma> & \<Sigma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
+  and [simp]: "\<Gamma> & \<Sigma> \<turnstile> v : t \<Longrightarrow> \<Gamma>' ++ \<Gamma> & \<Sigma> \<turnstile> v : t"
+  by (induction \<Gamma> \<Sigma> e t\<^sub>1 t\<^sub>2 and \<Gamma> \<Sigma> v t rule: typecheck\<^sub>e_typecheck\<^sub>v.inducts) simp_all
+
+lemma [simp]: "\<Gamma> & \<Sigma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> dom \<Gamma> \<inter> dom \<Gamma>' = {} \<Longrightarrow> \<Gamma> ++ \<Gamma>' & \<Sigma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
+  and [simp]: "\<Gamma> & \<Sigma> \<turnstile> v : t \<Longrightarrow> dom \<Gamma> \<inter> dom \<Gamma>' = {} \<Longrightarrow> \<Gamma> ++ \<Gamma>' & \<Sigma> \<turnstile> v : t"
+  proof (induction \<Gamma> \<Sigma> e t\<^sub>1 t\<^sub>2 and \<Gamma> \<Sigma> v t rule: typecheck\<^sub>e_typecheck\<^sub>v.inducts) 
+  case (tc_var \<Gamma> x t\<^sub>1 t\<^sub>2 \<Sigma>)
+    moreover hence "\<Gamma>' x = None" by auto
+    ultimately show ?case by (simp add: map_add_def)
+  qed simp_all
+
+lemma [simp]: "\<Gamma> & \<Sigma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> x \<notin> dom \<Sigma> \<Longrightarrow> \<Gamma> & \<Sigma>(x \<mapsto> F) \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
+  and [simp]: "\<Gamma> & \<Sigma> \<turnstile> v : t \<Longrightarrow> x \<notin> dom \<Sigma> \<Longrightarrow> \<Gamma> & \<Sigma>(x \<mapsto> F) \<turnstile> v : t"
+  proof (induction \<Gamma> \<Sigma> e t\<^sub>1 t\<^sub>2 and \<Gamma> \<Sigma> v t rule: typecheck\<^sub>e_typecheck\<^sub>v.inducts)
+  case (tc_inj \<Sigma> n F' \<Gamma>)
+    hence "(\<Sigma>(x \<mapsto> F)) n = Some F'" by auto
+    thus ?case by simp
+  next case (tc_outj \<Sigma> n F' \<Gamma>)
+    hence "(\<Sigma>(x \<mapsto> F)) n = Some F'" by auto
+    thus ?case by simp
+  next case (tc_cata \<Sigma> n F' \<Gamma>)
+    moreover hence "(\<Sigma>(x \<mapsto> F)) n = Some F'" by auto
+    ultimately show ?case by simp
+  next case (tc_ana \<Sigma> n F' \<Gamma>)
+    moreover hence "(\<Sigma>(x \<mapsto> F)) n = Some F'" by auto
+    ultimately show ?case by simp
+  next case (tcv_inj \<Sigma> n F' \<Gamma>)
+    moreover hence "(\<Sigma>(x \<mapsto> F)) n = Some F'" by auto
+    ultimately show ?case by simp
+  qed simp_all
+
+lemma [simp]: "\<Gamma> & \<Sigma> \<tturnstile> \<Lambda> \<Longrightarrow> x \<notin> dom \<Sigma> \<Longrightarrow> \<Gamma> & \<Sigma>(x \<mapsto> F) \<tturnstile> \<Lambda>"
+  proof (unfold typecheck_context_def, rule, rule, rule, rule)
+    fix y t\<^sub>1 t\<^sub>2
+    assume "\<forall>x t\<^sub>1 t\<^sub>2. \<Gamma> x = Some (t\<^sub>1, t\<^sub>2) \<longrightarrow> (\<exists>e. \<Lambda> x = Some e \<and> \<Gamma> & \<Sigma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2)"
+       and "\<Gamma> y = Some (t\<^sub>1, t\<^sub>2)"
+    then obtain e where "\<Lambda> y = Some e \<and> \<Gamma> & \<Sigma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2" by blast
+    moreover assume "x \<notin> dom \<Sigma>"
+    ultimately show "\<exists>e. \<Lambda> y = Some e \<and> \<Gamma> & \<Sigma>(x \<mapsto> F) \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2" by simp
+  qed
+
+lemma [simp]: "\<Gamma> & \<Sigma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> & \<Sigma> \<tturnstile> \<Lambda> \<Longrightarrow> x \<notin> dom \<Lambda> \<Longrightarrow> 
+    \<Gamma>(x \<mapsto> (t\<^sub>1, t\<^sub>2)) & \<Sigma> \<tturnstile> \<Lambda>(x \<mapsto> e)"
+  proof (unfold typecheck_context_def, rule, rule, rule, rule)
+    fix y t\<^sub>1' t\<^sub>2'
+    assume A: "\<Gamma> & \<Sigma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
+       and B: "\<forall>x t\<^sub>1 t\<^sub>2. \<Gamma> x = Some (t\<^sub>1, t\<^sub>2) \<longrightarrow> (\<exists>e. \<Lambda> x = Some e \<and> \<Gamma> & \<Sigma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2)"
+       and C: "x \<notin> dom \<Lambda>"
+       and D: "(\<Gamma>(x \<mapsto> (t\<^sub>1, t\<^sub>2))) y = Some (t\<^sub>1', t\<^sub>2')"
+    moreover hence E: "x \<notin> dom \<Gamma>" by auto
+    ultimately show "\<exists>e'. (\<Lambda>(x \<mapsto> e)) y = Some e' \<and> \<Gamma>(x \<mapsto> (t\<^sub>1, t\<^sub>2)) & \<Sigma> \<turnstile> e' : t\<^sub>1' \<rightarrow> t\<^sub>2'"
+      proof (cases "x = y")
+      case False
+        with B D obtain e' where "\<Lambda> y = Some e' \<and> \<Gamma> & \<Sigma> \<turnstile> e' : t\<^sub>1' \<rightarrow> t\<^sub>2'" by fastforce
+        with E False show ?thesis by simp
+      qed simp_all
+  qed
+
+lemma [simp]: "\<Gamma> & \<Sigma> \<tturnstile> \<Lambda> \<Longrightarrow> \<Gamma>' & \<Sigma> \<tturnstile> \<Lambda>' \<Longrightarrow> dom \<Gamma> \<inter> dom \<Gamma>' = {} \<Longrightarrow> dom \<Lambda> \<inter> dom \<Lambda>' = {} \<Longrightarrow> 
+    \<Gamma> ++ \<Gamma>' & \<Sigma> \<tturnstile> \<Lambda> ++ \<Lambda>'"
+  proof (unfold typecheck_context_def, rule, rule, rule, rule)
+    fix x t\<^sub>1 t\<^sub>2
+    assume A: "\<forall>x t\<^sub>1 t\<^sub>2. \<Gamma> x = Some (t\<^sub>1, t\<^sub>2) \<longrightarrow> (\<exists>e. \<Lambda> x = Some e \<and> \<Gamma> & \<Sigma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2)"
+    assume B: "\<forall>x t\<^sub>1 t\<^sub>2. \<Gamma>' x = Some (t\<^sub>1, t\<^sub>2) \<longrightarrow> (\<exists>e. \<Lambda>' x = Some e \<and> \<Gamma>' & \<Sigma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2)"
+    assume C: "dom \<Gamma> \<inter> dom \<Gamma>' = {}"
+    assume D: "dom \<Lambda> \<inter> dom \<Lambda>' = {}"
+    assume E: "(\<Gamma> ++ \<Gamma>') x = Some (t\<^sub>1, t\<^sub>2)"
+    show "\<exists>e. (\<Lambda> ++ \<Lambda>') x = Some e \<and> \<Gamma> ++ \<Gamma>' & \<Sigma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2" 
+      proof (cases "x \<in> dom \<Gamma>'")
+      case True
+        with B E obtain e where "\<Lambda>' x = Some e \<and> \<Gamma>' & \<Sigma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2" by fastforce
+        thus ?thesis by simp
+      next case False
+        with A E obtain e where F: "\<Lambda> x = Some e \<and> \<Gamma> & \<Sigma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2" by fastforce
+        with D have "\<Lambda>' x = None" by auto
+        with F have "(\<Lambda> ++ \<Lambda>') x = Some e" by (simp add: map_add_def)
+        with C F show ?thesis by simp
+      qed
+  qed
 
 end
