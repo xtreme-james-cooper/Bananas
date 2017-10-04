@@ -2,12 +2,13 @@ theory Typechecking
 imports BananasProgram Unification
 begin
 
-datatype flat_type = UNIT| TIMES | PLUS | ARROW | MU | IDF | CONSTF | TIMESF | PLUSF
+datatype flat_type = UNIT | TIMES | PLUS | ARROW | MU | NAMED name | IDF | CONSTF | TIMESF | PLUSF
 
 primrec flatten_type :: "type \<Rightarrow> flat_type expression"
     and flatten_funct :: "funct \<Rightarrow> flat_type expression" where
   "flatten_type \<one> = CON UNIT []"  
 | "flatten_type (Poly n) = VAR n"
+| "flatten_type (Named x) = CON (NAMED x) []"
 | "flatten_type (t\<^sub>1 \<otimes> t\<^sub>2) = CON TIMES [flatten_type t\<^sub>1, flatten_type t\<^sub>2]"
 | "flatten_type (t\<^sub>1 \<oplus> t\<^sub>2) = CON PLUS [flatten_type t\<^sub>1, flatten_type t\<^sub>2]"
 | "flatten_type (t\<^sub>1 \<hookrightarrow> t\<^sub>2) = CON ARROW [flatten_type t\<^sub>1, flatten_type t\<^sub>2]"
@@ -27,7 +28,10 @@ primrec apply_functor_flat :: "flat_type expression \<Rightarrow> funct \<Righta
 fun inflate_type :: "flat_type expression \<Rightarrow> type option"
 and inflate_funct :: "flat_type expression \<Rightarrow> funct option" where
   "inflate_type (VAR x) = Some (Poly x)"
-| "inflate_type (CON c []) = (if c = UNIT then Some \<one> else None)"
+| "inflate_type (CON c []) = (case c of
+      UNIT \<Rightarrow> Some \<one> 
+    | NAMED x \<Rightarrow> Some (Named x)
+    | _ \<Rightarrow> None)"
 | "inflate_type (CON c [F]) = 
     Option.bind (inflate_funct F) (\<lambda>F'. 
       (if c = MU then Some (\<mu> F') else None))"

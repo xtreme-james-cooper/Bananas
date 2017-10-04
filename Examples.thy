@@ -36,7 +36,7 @@ lemma "algorithmic_typecheck\<^sub>e [''greater_than_helper'' \<mapsto> (Nat \<o
   by (simp add: greater_than_expr_def Let_def)
 
 lemma "algorithmic_typecheck\<^sub>e Map.empty length\<^bsub>t\<^esub> = Some (List t, Nat)"
-  by (simp add: length_expr_def Let_def)
+  by (simp add: length_expr_def)
 
 primrec nat_to_val :: "nat \<Rightarrow> val" where
   "nat_to_val 0 = ZeroV"
