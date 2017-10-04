@@ -4,10 +4,12 @@ begin
 
 datatype decl = 
   TypeDecl name "(name \<times> type list) list"
+| ValDecl name val
 | ExprDecl name expr
 
 primrec binders\<^sub>d :: "decl \<Rightarrow> name set" where
-  "binders\<^sub>d (TypeDecl x cts) = fst ` set cts"
+  "binders\<^sub>d (TypeDecl x cts) = insert x (fst ` set cts)"
+| "binders\<^sub>d (ValDecl x v) = {x}"
 | "binders\<^sub>d (ExprDecl x e) = {x}"
 
 fun binders :: "decl list \<Rightarrow> name set" where
@@ -15,32 +17,36 @@ fun binders :: "decl list \<Rightarrow> name set" where
 
 datatype prog = Prog "decl list" expr val
 
-fun typecheck\<^sub>c :: "(name \<times> type list) list \<Rightarrow> (name \<rightharpoonup> type) \<times> funct" where
-  "typecheck\<^sub>c [] = (Map.empty, K \<zero>)" 
+fun typecheck\<^sub>c :: "(name \<times> type list) list \<Rightarrow> (name \<rightharpoonup> type) \<times> name set \<times> funct" where
+  "typecheck\<^sub>c [] = (Map.empty, {}, K \<zero>)" 
 | "typecheck\<^sub>c ((x, ts) # cts) = (
-    let (\<Gamma>, Fs) = typecheck\<^sub>c cts
-    in (\<Gamma>(x \<mapsto> foldr (op \<otimes>) ts \<one>), Fs \<Oplus> (foldr (\<lambda>t f. K t \<Otimes> f) ts (K \<one>))))"
+    let (es, vs, Fs) = typecheck\<^sub>c cts
+    in (es(x \<mapsto> foldr (op \<otimes>) ts \<one>), insert x vs, Fs \<Oplus> (foldr (\<lambda>t f. K t \<Otimes> f) ts (K \<one>))))"
 
-fun bind_with_names :: "name \<Rightarrow> (name \<rightharpoonup> type) \<Rightarrow> name \<rightharpoonup> type \<times> type" where
-  "bind_with_names n \<Gamma> x = map_option (\<lambda>t. (t, Named n)) (\<Gamma> x)"
+fun bind_with_name :: "name \<Rightarrow> (name \<rightharpoonup> type) \<times> name set \<times> funct \<Rightarrow> static_environment" where
+  "bind_with_name n (es, vs, Fs) = \<lparr> 
+      var\<^sub>e_type = map_option (\<lambda>t. (t, Named n)) o es, 
+      var\<^sub>v_type = \<lambda>x. if x \<in> vs then Some (Named n) else None, 
+      var\<^sub>t_type = [n \<mapsto> Fs] \<rparr>"
 
-inductive typecheck_decl :: "(name \<rightharpoonup> type \<times> type) \<Rightarrow> (name \<rightharpoonup> funct) \<Rightarrow> decl \<Rightarrow> 
-    (name \<rightharpoonup> type \<times> type) \<Rightarrow> (name \<rightharpoonup> funct) \<Rightarrow> bool" (infix "& _ \<Turnstile> _ : _ &" 60) where
-  tcd_type [simp]: "typecheck\<^sub>c cts = (\<Gamma>', F) \<Longrightarrow> distinct (map fst cts) \<Longrightarrow>
-    \<Gamma> & \<Sigma> \<Turnstile> TypeDecl x cts : \<Gamma> ++ bind_with_names x \<Gamma>' & \<Sigma>(x \<mapsto> F)"
-| tcd_expr [simp]: "\<Gamma> & \<Sigma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> & \<Sigma> \<Turnstile> ExprDecl x e : \<Gamma>(x \<mapsto> (t\<^sub>1, t\<^sub>2)) & \<Sigma>"
+inductive typecheck_decl :: "static_environment \<Rightarrow> decl \<Rightarrow> static_environment \<Rightarrow> bool" 
+    (infix "\<Turnstile> _ :" 60) where
+  tcd_type [simp]: "\<Gamma> \<Turnstile> TypeDecl x cts : combine \<Gamma> (bind_with_name x (typecheck\<^sub>c cts))"
+| tcd_val [simp]: "\<Gamma> \<turnstile> v : t \<Longrightarrow> \<Gamma> \<Turnstile> ValDecl x v : extend\<^sub>v x t \<Gamma>"
+| tcd_expr [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<Turnstile> ExprDecl x e : extend\<^sub>e x (t\<^sub>1, t\<^sub>2) \<Gamma>"
 
-inductive_cases [elim]: "\<Gamma> & \<Sigma> \<Turnstile> TypeDecl x F : \<Gamma>' & \<Sigma>'"
-inductive_cases [elim]: "\<Gamma> & \<Sigma> \<Turnstile> ExprDecl x e : \<Gamma>' & \<Sigma>'"
+inductive_cases [elim]: "\<Gamma> \<Turnstile> TypeDecl x F : \<Gamma>'"
+inductive_cases [elim]: "\<Gamma> \<Turnstile> ValDecl x v : \<Gamma>'"
+inductive_cases [elim]: "\<Gamma> \<Turnstile> ExprDecl x e : \<Gamma>'"
 
-inductive typecheck_decls :: "(name \<rightharpoonup> type \<times> type) \<Rightarrow> (name \<rightharpoonup> funct) \<Rightarrow> decl list \<Rightarrow> 
-    (name \<rightharpoonup> type \<times> type) \<Rightarrow> (name \<rightharpoonup> funct) \<Rightarrow> bool" (infix "& _ \<Turnstile> _ :: _ &" 60) where
-  tcd_nil [simp]: "\<Gamma> & \<Sigma> \<Turnstile> [] :: \<Gamma> & \<Sigma>"
-| tcd_cons [simp]: "\<Gamma> & \<Sigma> \<Turnstile> \<delta> : \<Gamma>' & \<Sigma>' \<Longrightarrow> binders\<^sub>d \<delta> \<inter> binders \<Lambda> = {} \<Longrightarrow> 
-    \<Gamma>' & \<Sigma>' \<Turnstile> \<Lambda> :: \<Gamma>'' & \<Sigma>'' \<Longrightarrow> \<Gamma> & \<Sigma> \<Turnstile> \<delta> # \<Lambda> :: \<Gamma>'' & \<Sigma>''"
+inductive typecheck_decls :: "static_environment \<Rightarrow> decl list \<Rightarrow> static_environment \<Rightarrow> bool" 
+    (infix "\<Turnstile> _ ::" 60) where
+  tcd_nil [simp]: "\<Gamma> \<Turnstile> [] :: \<Gamma>"
+| tcd_cons [simp]: "\<Gamma> \<Turnstile> \<delta> : \<Gamma>' \<Longrightarrow> binders\<^sub>d \<delta> \<inter> binders \<Lambda> = {} \<Longrightarrow> \<Gamma>' \<Turnstile> \<Lambda> :: \<Gamma>'' \<Longrightarrow> 
+    \<Gamma> \<Turnstile> \<delta> # \<Lambda> :: \<Gamma>''"
 
-inductive_cases [elim]: "\<Gamma> & \<Sigma> \<Turnstile> [] :: \<Gamma>' & \<Sigma>'"
-inductive_cases [elim]: "\<Gamma> & \<Sigma> \<Turnstile> \<delta> # \<Lambda> :: \<Gamma>' & \<Sigma>'"
+inductive_cases [elim]: "\<Gamma> \<Turnstile> [] :: \<Gamma>'"
+inductive_cases [elim]: "\<Gamma> \<Turnstile> \<delta> # \<Lambda> :: \<Gamma>'"
 
 inductive typecheck_prog :: "prog \<Rightarrow> (name \<rightharpoonup> type \<times> type) \<Rightarrow> (name \<rightharpoonup> funct) \<Rightarrow> type \<Rightarrow> bool" 
     (infix "\<TTurnstile> _ & _ :" 60) where
