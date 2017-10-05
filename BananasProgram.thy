@@ -25,12 +25,15 @@ fun typecheck\<^sub>c\<^sub>e :: "funct \<Rightarrow> (name \<times> type list) 
 definition typecheck\<^sub>c\<^sub>v :: "funct \<Rightarrow> (name \<times> type list) list \<Rightarrow> (name \<rightharpoonup> type)" where
   "typecheck\<^sub>c\<^sub>v F cts x = (if x \<in> fst ` set cts then Some (\<mu> F) else None)"
 
-definition typecheck\<^sub>c\<^sub>t :: "(name \<times> type list) list \<Rightarrow> funct" where
-  "typecheck\<^sub>c\<^sub>t cts = foldr (\<lambda>(x, ts). op \<Oplus> (foldr (op \<Otimes> o K) ts (K \<one>))) cts (K \<zero>)"
+primrec typecheck\<^sub>c\<^sub>t :: "name \<times> type list \<Rightarrow> funct" where
+  "typecheck\<^sub>c\<^sub>t (x, ts) = K (foldr (op \<otimes>) ts \<one>)"
+
+definition typecheck\<^sub>c\<^sub>t\<^sub>s :: "(name \<times> type list) list \<Rightarrow> funct" where
+  "typecheck\<^sub>c\<^sub>t\<^sub>s cts = foldr (op \<Oplus> o typecheck\<^sub>c\<^sub>t) cts (K \<zero>)"
 
 definition typecheck\<^sub>d :: "name \<Rightarrow> (name \<times> type list) list \<Rightarrow> static_environment" where
   "typecheck\<^sub>d n cts = (
-      let F = typecheck\<^sub>c\<^sub>t cts 
+      let F = typecheck\<^sub>c\<^sub>t\<^sub>s cts 
       in \<lparr> var\<^sub>e_type = typecheck\<^sub>c\<^sub>e F cts, var\<^sub>v_type = typecheck\<^sub>c\<^sub>v F cts, var\<^sub>t_type = [n \<mapsto> F] \<rparr>)"
 
 inductive typecheck_decl :: "static_environment \<Rightarrow> decl \<Rightarrow> static_environment \<Rightarrow> bool" 
@@ -81,7 +84,7 @@ primrec assemble_context' :: "decl \<Rightarrow> dynamic_environment" where
   "assemble_context' (TypeDecl x cts) = \<lparr> 
     var\<^sub>e_bind = assemble_context\<^sub>c\<^sub>e x 0 cts, 
     var\<^sub>v_bind = assemble_context\<^sub>c\<^sub>v x cts, 
-    var\<^sub>t_bind = [x \<mapsto> typecheck\<^sub>c\<^sub>t cts] \<rparr>"
+    var\<^sub>t_bind = [x \<mapsto> typecheck\<^sub>c\<^sub>t\<^sub>s cts] \<rparr>"
 | "assemble_context' (ValDecl x v) = empty_dynamic \<lparr> var\<^sub>v_bind := [x \<mapsto> v] \<rparr>"
 | "assemble_context' (ExprDecl x e) = empty_dynamic \<lparr> var\<^sub>e_bind := [x \<mapsto> e] \<rparr>"
 
@@ -120,32 +123,102 @@ lemma [simp]: "typecheck\<^sub>c\<^sub>e F cts x = Some (t\<^sub>1, t\<^sub>2) \
 lemma [simp]: "assemble_context\<^sub>c\<^sub>e n d cts x = Some e \<Longrightarrow> \<exists>t\<^sub>1 t\<^sub>2. typecheck\<^sub>c\<^sub>e F cts x = Some (t\<^sub>1, t\<^sub>2)"
   by (induction n d cts arbitrary: e rule: assemble_context\<^sub>c\<^sub>e.induct) auto
 
-lemma tc_assembled: "typecheck\<^sub>c\<^sub>e F cts x = Some (t\<^sub>1, t\<^sub>2) \<Longrightarrow> typecheck\<^sub>c\<^sub>t (cts' @ cts) = F \<Longrightarrow>
+lemma [elim]: "\<Gamma> \<turnstile> right_inject (length cts') : t\<^sub>1 \<rightarrow> t\<^sub>2 \<star> typecheck\<^sub>c\<^sub>t\<^sub>s (cts' @ cts) \<Longrightarrow> 
+    \<Gamma>' \<turnstile> right_inject (length cts') : t\<^sub>1 \<rightarrow> t\<^sub>2 \<star> typecheck\<^sub>c\<^sub>t\<^sub>s (cts' @ cts)"
+  proof (induction cts')
+  case (Cons ct cts')
+    let ?F = "typecheck\<^sub>c\<^sub>t\<^sub>s (ct # cts' @ cts)"
+    let ?F' = "typecheck\<^sub>c\<^sub>t\<^sub>s (cts' @ cts)" 
+    from Cons have "(\<Gamma> \<turnstile> \<iota>\<^sub>r : t\<^sub>2 \<star> ?F' \<rightarrow> (t\<^sub>2 \<star> typecheck\<^sub>c\<^sub>t ct) \<oplus> (t\<^sub>2 \<star> ?F')) \<and> 
+      \<Gamma> \<turnstile> right_inject (length cts') : t\<^sub>1 \<rightarrow> t\<^sub>2 \<star> ?F'" using typecheck\<^sub>c\<^sub>t\<^sub>s_def by fastforce
+    with Cons have "\<Gamma>' \<turnstile> right_inject (length cts') : t\<^sub>1 \<rightarrow> t\<^sub>2 \<star> ?F'" by simp
+    moreover have "\<Gamma>' \<turnstile> \<iota>\<^sub>r : t\<^sub>2 \<star> ?F' \<rightarrow> t\<^sub>2 \<star> ?F" by (simp add: typecheck\<^sub>c\<^sub>t\<^sub>s_def)
+    ultimately show ?case by simp
+  qed fastforce+
+
+lemma assembled_no_free_vars: "assemble_context\<^sub>c\<^sub>e n (length cts') cts x = Some e \<Longrightarrow> 
+    var\<^sub>t_type \<Gamma> n = Some (typecheck\<^sub>c\<^sub>t\<^sub>s (cts' @ cts)) \<Longrightarrow> 
+      var\<^sub>t_type \<Gamma>' n = Some (typecheck\<^sub>c\<^sub>t\<^sub>s (cts' @ cts)) \<Longrightarrow> \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma>' \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2" 
+  proof (induction n "length cts'" cts arbitrary: cts' rule: assemble_context\<^sub>c\<^sub>e.induct)
+  case (2 n y t cts)
+    moreover have "Suc (length cts') = length (cts' @ [(y, t)])" by simp
+    moreover from 2 have "var\<^sub>t_type \<Gamma> n = Some (typecheck\<^sub>c\<^sub>t\<^sub>s ((cts' @ [(y, t)]) @ cts))" by simp
+    moreover from 2 have "var\<^sub>t_type \<Gamma>' n = Some (typecheck\<^sub>c\<^sub>t\<^sub>s ((cts' @ [(y, t)]) @ cts))" by simp
+    ultimately have IH: "assemble_context\<^sub>c\<^sub>e n (length (cts' @ [(y, t)])) cts x = Some e \<Longrightarrow> 
+      \<Gamma>' \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2" by blast
+    with 2 show ?case
+      proof (cases "x = y")
+      case True
+        let ?F = "typecheck\<^sub>c\<^sub>t\<^sub>s (cts' @ (y, t) # cts)"
+        from True 2 have "(\<Gamma> \<turnstile> right_inject (length cts') : t\<^sub>1 \<rightarrow> \<mu> ?F \<star> ?F) \<and> t\<^sub>2 = \<mu> ?F"
+          by fastforce
+        moreover hence "\<Gamma>' \<turnstile> right_inject (length cts') : t\<^sub>1 \<rightarrow> \<mu> ?F \<star> ?F" by fastforce
+        moreover from 2 have "\<Gamma>' \<turnstile> \<succ>\<^bsub>n\<^esub> : \<mu> ?F \<star> ?F \<rightarrow> \<mu> ?F" by simp
+        ultimately have "\<Gamma>' \<turnstile> \<succ>\<^bsub>n\<^esub> \<cdot> right_inject (length cts') : t\<^sub>1 \<rightarrow> t\<^sub>2" by simp
+        with True 2 show ?thesis by simp
+      qed simp_all
+   qed simp_all
+
+lemma [simp]: "typecheck\<^sub>c\<^sub>t\<^sub>s (cts @ (x, ts) # cts') = F \<Longrightarrow> 
+    \<Gamma> \<turnstile> right_inject (length cts) : foldr op \<otimes> ts \<one> \<rightarrow> t \<star> F"
+  proof (induction cts arbitrary: F)
+  case Nil
+    hence "F = typecheck\<^sub>c\<^sub>t (x, ts) \<Oplus> typecheck\<^sub>c\<^sub>t\<^sub>s cts'" by (simp add: typecheck\<^sub>c\<^sub>t\<^sub>s_def)
+    thus ?case by (simp add: typecheck\<^sub>c\<^sub>t\<^sub>s_def)
+  next case (Cons ct cts)
+    let ?F = "typecheck\<^sub>c\<^sub>t\<^sub>s (cts @ (x, ts) # cts')"
+    from Cons have "F = typecheck\<^sub>c\<^sub>t ct \<Oplus> ?F" by (simp add: typecheck\<^sub>c\<^sub>t\<^sub>s_def)
+    hence X: "\<Gamma> \<turnstile> \<iota>\<^sub>r : t \<star> ?F \<rightarrow> t \<star> F" by (simp add: typecheck\<^sub>c\<^sub>t\<^sub>s_def)
+    from Cons have "\<Gamma> \<turnstile> right_inject (length cts) : foldr op \<otimes> ts \<one> \<rightarrow> t \<star> ?F" by simp
+    with X show ?case by simp
+  qed
+
+lemma tc_assembled_e: "typecheck\<^sub>c\<^sub>e F cts x = Some (t\<^sub>1, t\<^sub>2) \<Longrightarrow> typecheck\<^sub>c\<^sub>t\<^sub>s (cts' @ cts) = F \<Longrightarrow>
   \<exists>e. assemble_context\<^sub>c\<^sub>e n (length cts') cts x = Some e \<and> \<lparr>var\<^sub>e_type = typecheck\<^sub>c\<^sub>e F cts, 
     var\<^sub>v_type = typecheck\<^sub>c\<^sub>v F cts, var\<^sub>t_type = [n \<mapsto> F]\<rparr> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
   proof (induction F cts x arbitrary: cts' rule: typecheck\<^sub>c\<^sub>e.induct)
-  case (2 F x ts cts y)
+  case (2 F y ts cts x)
+    let ?\<Gamma> = "\<lparr>var\<^sub>e_type = typecheck\<^sub>c\<^sub>e F ((y, ts) # cts), 
+               var\<^sub>v_type = typecheck\<^sub>c\<^sub>v F ((y, ts) # cts), 
+               var\<^sub>t_type = [n \<mapsto> F]\<rparr>"
     show ?case
       proof (cases "x = y")
       case True
-        with True 2 show ?thesis by simp
-      next case False
-        with False show ?thesis by simp
+        have X: "?\<Gamma> \<turnstile> \<succ>\<^bsub>n\<^esub> : \<mu> F \<star> F \<rightarrow> \<mu> F" by simp
+        from 2 have "?\<Gamma> \<turnstile> right_inject (length cts') : foldr op \<otimes> ts \<one> \<rightarrow> \<mu> F \<star> F" by simp
+        with 2 True X have "?\<Gamma> \<turnstile> \<succ>\<^bsub>n\<^esub> \<cdot> right_inject (length cts') : t\<^sub>1 \<rightarrow> t\<^sub>2" by simp
+        with True show ?thesis by fastforce
+      next case False        
+        with 2 have X: "typecheck\<^sub>c\<^sub>e F cts x = Some (t\<^sub>1, t\<^sub>2)" by simp
+        let ?\<Gamma>' = "\<lparr>var\<^sub>e_type = typecheck\<^sub>c\<^sub>e F cts, var\<^sub>v_type = typecheck\<^sub>c\<^sub>v F cts, 
+          var\<^sub>t_type = [n \<mapsto> F]\<rparr>"
+        from 2 have F: "typecheck\<^sub>c\<^sub>t\<^sub>s ((cts' @ [(y, ts)]) @ cts) = F" by simp
+        with 2 False X obtain e where "
+          assemble_context\<^sub>c\<^sub>e n (length (cts' @ [(y, ts)])) cts x = Some e \<and> ?\<Gamma>' \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2" 
+            by blast
+        moreover hence "assemble_context\<^sub>c\<^sub>e n (Suc (length cts')) cts x = Some e" by simp
+        moreover from F have "var\<^sub>t_type ?\<Gamma>' n = Some (typecheck\<^sub>c\<^sub>t\<^sub>s ((cts' @ [(y, ts)]) @ cts))" 
+          by simp
+        moreover from F have "var\<^sub>t_type ?\<Gamma> n = Some (typecheck\<^sub>c\<^sub>t\<^sub>s ((cts' @ [(y, ts)]) @ cts))" 
+          by simp
+        ultimately have "assemble_context\<^sub>c\<^sub>e n (Suc (length cts')) cts x = Some e \<and> 
+          ?\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2" by (metis assembled_no_free_vars length_append_singleton)
+        with False show ?thesis by fastforce
       qed
   qed simp_all
 
-lemma [simp]: "typecheck\<^sub>c\<^sub>e (typecheck\<^sub>c\<^sub>t cts) cts x = Some (t\<^sub>1, t\<^sub>2) \<Longrightarrow> 
-  \<exists>e. assemble_context\<^sub>c\<^sub>e n 0 cts x = Some e \<and> \<lparr>var\<^sub>e_type = typecheck\<^sub>c\<^sub>e (typecheck\<^sub>c\<^sub>t cts) cts, 
-    var\<^sub>v_type = typecheck\<^sub>c\<^sub>v (typecheck\<^sub>c\<^sub>t cts) cts, var\<^sub>t_type = [n \<mapsto> typecheck\<^sub>c\<^sub>t cts]\<rparr> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
+lemma [simp]: "typecheck\<^sub>c\<^sub>e (typecheck\<^sub>c\<^sub>t\<^sub>s cts) cts x = Some (t\<^sub>1, t\<^sub>2) \<Longrightarrow> 
+  \<exists>e. assemble_context\<^sub>c\<^sub>e n 0 cts x = Some e \<and> \<lparr>var\<^sub>e_type = typecheck\<^sub>c\<^sub>e (typecheck\<^sub>c\<^sub>t\<^sub>s cts) cts, 
+    var\<^sub>v_type = typecheck\<^sub>c\<^sub>v (typecheck\<^sub>c\<^sub>t\<^sub>s cts) cts, var\<^sub>t_type = [n \<mapsto> typecheck\<^sub>c\<^sub>t\<^sub>s cts]\<rparr> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
   proof -
-    assume "typecheck\<^sub>c\<^sub>e (typecheck\<^sub>c\<^sub>t cts) cts x = Some (t\<^sub>1, t\<^sub>2)"
-    hence "typecheck\<^sub>c\<^sub>e (typecheck\<^sub>c\<^sub>t ([] @ cts)) cts x = Some (t\<^sub>1, t\<^sub>2)" by simp
-    thus ?thesis using tc_assembled by fastforce
+    assume "typecheck\<^sub>c\<^sub>e (typecheck\<^sub>c\<^sub>t\<^sub>s cts) cts x = Some (t\<^sub>1, t\<^sub>2)"
+    hence "typecheck\<^sub>c\<^sub>e (typecheck\<^sub>c\<^sub>t\<^sub>s ([] @ cts)) cts x = Some (t\<^sub>1, t\<^sub>2)" by simp
+    thus ?thesis using tc_assembled_e by fastforce
   qed
 
-lemma [simp]: "typecheck\<^sub>c\<^sub>v (typecheck\<^sub>c\<^sub>t cts) cts xa = Some t \<Longrightarrow> 
-  \<exists>v. assemble_context\<^sub>c\<^sub>v n cts xa = Some v \<and> \<lparr>var\<^sub>e_type = typecheck\<^sub>c\<^sub>e (typecheck\<^sub>c\<^sub>t cts) cts, 
-    var\<^sub>v_type = typecheck\<^sub>c\<^sub>v (typecheck\<^sub>c\<^sub>t cts) cts, var\<^sub>t_type = [n \<mapsto> typecheck\<^sub>c\<^sub>t cts]\<rparr> \<turnstile> v : t"
+lemma [simp]: "typecheck\<^sub>c\<^sub>v (typecheck\<^sub>c\<^sub>t\<^sub>s cts) cts xa = Some t \<Longrightarrow> 
+  \<exists>v. assemble_context\<^sub>c\<^sub>v n cts xa = Some v \<and> \<lparr>var\<^sub>e_type = typecheck\<^sub>c\<^sub>e (typecheck\<^sub>c\<^sub>t\<^sub>s cts) cts, 
+    var\<^sub>v_type = typecheck\<^sub>c\<^sub>v (typecheck\<^sub>c\<^sub>t\<^sub>s cts) cts, var\<^sub>t_type = [n \<mapsto> typecheck\<^sub>c\<^sub>t\<^sub>s cts]\<rparr> \<turnstile> v : t"
   by simp
 
 lemma tc_typedecl: "typecheck\<^sub>d x cts \<tturnstile> assemble_context' (TypeDecl x cts)"
