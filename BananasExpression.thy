@@ -8,7 +8,6 @@ datatype type =
   Void ("\<zero>")
 | Unit ("\<one>")
 | Poly nat
-| Named name
 | Prod type type (infixr "\<otimes>" 85)
 | Sum type type (infixr "\<oplus>" 80)
 | Func type type (infixr "\<hookrightarrow>" 70)
@@ -515,6 +514,8 @@ theorem total_preservation [simp]: "\<Lambda> \<turnstile> e \<cdot> v \<Down> v
 
 (* environment lemmas *)
 
+
+(*
 lemma [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> x \<notin> domain\<^sub>s \<Gamma> \<Longrightarrow> extend\<^sub>e\<^sub>s x tt \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
   and [simp]: "\<Gamma> \<turnstile> v : t \<Longrightarrow> x \<notin> domain\<^sub>s \<Gamma> \<Longrightarrow> extend\<^sub>e\<^sub>s x tt \<Gamma> \<turnstile> v : t"
   by (induction \<Gamma> e t\<^sub>1 t\<^sub>2 and \<Gamma> v t rule: typecheck\<^sub>e_typecheck\<^sub>v.inducts) simp_all
@@ -531,6 +532,8 @@ lemma [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Lon
   and [simp]: "\<Gamma> \<turnstile> v : t \<Longrightarrow> domain\<^sub>s \<Gamma> \<inter> domain\<^sub>s \<Gamma>' = {} \<Longrightarrow> combine\<^sub>s \<Gamma> \<Gamma>' \<turnstile> v : t"
   by (induction \<Gamma> e t\<^sub>1 t\<^sub>2 and \<Gamma> v t rule: typecheck\<^sub>e_typecheck\<^sub>v.inducts) simp_all
 
+*)
+
 lemma [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<tturnstile> \<Lambda> \<Longrightarrow> x \<notin> domain\<^sub>s \<Gamma> \<Longrightarrow> 
     extend\<^sub>e\<^sub>s x (t\<^sub>1, t\<^sub>2) \<Gamma> \<tturnstile> extend\<^sub>e\<^sub>d x e \<Lambda>"
   by simp
@@ -538,7 +541,7 @@ lemma [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Lon
 lemma [simp]: "\<Gamma> \<turnstile> v : t \<Longrightarrow> \<Gamma> \<tturnstile> \<Lambda> \<Longrightarrow> x \<notin> domain\<^sub>s \<Gamma> \<Longrightarrow> extend\<^sub>v\<^sub>s x t \<Gamma> \<tturnstile> extend\<^sub>v\<^sub>d x v \<Lambda>"
   by simp
 
-lemma [simp]: "\<Gamma> \<tturnstile> \<Lambda> \<Longrightarrow> \<Gamma>' \<tturnstile> \<Lambda>' \<Longrightarrow> domain\<^sub>s \<Gamma> \<inter> domain\<^sub>s \<Gamma>' = {} \<Longrightarrow> 
+lemma typecheck_combine [simp]: "\<Gamma> \<tturnstile> \<Lambda> \<Longrightarrow> \<Gamma>' \<tturnstile> \<Lambda>' \<Longrightarrow> domain\<^sub>s \<Gamma> \<inter> domain\<^sub>s \<Gamma>' = {} \<Longrightarrow> 
     combine\<^sub>s \<Gamma> \<Gamma>' \<tturnstile> combine\<^sub>d \<Lambda> \<Lambda>'"
   by simp
 
