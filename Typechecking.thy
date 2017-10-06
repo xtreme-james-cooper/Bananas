@@ -2,13 +2,13 @@ theory Typechecking
 imports BananasProgram Unification
 begin
 
-datatype flat_type = UNIT | TIMES | PLUS | ARROW | MU | NAMED name | IDF | CONSTF | TIMESF | PLUSF
+datatype flat_type = UNIT | VOID | TIMES | PLUS | ARROW | MU | IDF | CONSTF | TIMESF | PLUSF
 
 primrec flatten_type :: "type \<Rightarrow> flat_type expression"
     and flatten_funct :: "funct \<Rightarrow> flat_type expression" where
   "flatten_type \<one> = CON UNIT []"  
+| "flatten_type \<zero> = CON VOID []"  
 | "flatten_type (Poly n) = VAR n"
-| "flatten_type (Named x) = CON (NAMED x) []"
 | "flatten_type (t\<^sub>1 \<otimes> t\<^sub>2) = CON TIMES [flatten_type t\<^sub>1, flatten_type t\<^sub>2]"
 | "flatten_type (t\<^sub>1 \<oplus> t\<^sub>2) = CON PLUS [flatten_type t\<^sub>1, flatten_type t\<^sub>2]"
 | "flatten_type (t\<^sub>1 \<hookrightarrow> t\<^sub>2) = CON ARROW [flatten_type t\<^sub>1, flatten_type t\<^sub>2]"
@@ -30,7 +30,6 @@ and inflate_funct :: "flat_type expression \<Rightarrow> funct option" where
   "inflate_type (VAR x) = Some (Poly x)"
 | "inflate_type (CON c []) = (case c of
       UNIT \<Rightarrow> Some \<one> 
-    | NAMED x \<Rightarrow> Some (Named x)
     | _ \<Rightarrow> None)"
 | "inflate_type (CON c [F]) = 
     Option.bind (inflate_funct F) (\<lambda>F'. 
@@ -57,9 +56,9 @@ and inflate_funct :: "flat_type expression \<Rightarrow> funct option" where
         | _ \<Rightarrow> None))"
 | "inflate_funct (CON c _) = None"
 
-primrec assemble_constraints\<^sub>e :: "(name \<rightharpoonup> type \<times> type) \<Rightarrow> flat_type expression \<Rightarrow> 
+primrec assemble_constraints\<^sub>e :: "static_environment \<Rightarrow> flat_type expression \<Rightarrow> 
       flat_type expression \<Rightarrow> var \<Rightarrow> expr \<Rightarrow> flat_type equation list \<times> var" 
-    and assemble_constraints\<^sub>v :: "(name \<rightharpoonup> type \<times> type) \<Rightarrow> flat_type expression \<Rightarrow> var \<Rightarrow> val \<Rightarrow> 
+    and assemble_constraints\<^sub>v :: "static_environment \<Rightarrow> flat_type expression \<Rightarrow> var \<Rightarrow> val \<Rightarrow> 
       flat_type equation list \<times> var" where
   "assemble_constraints\<^sub>e \<Gamma> x y free \<epsilon> = ([(x, y)], free)"
 | "assemble_constraints\<^sub>e \<Gamma> x y free (\<kappa> v) = assemble_constraints\<^sub>v \<Gamma> y free v"
@@ -97,19 +96,23 @@ primrec assemble_constraints\<^sub>e :: "(name \<rightharpoonup> type \<times> t
     in let c = VAR free' in let d = VAR (Suc free') 
     in let (cs\<^sub>2, free'') = assemble_constraints\<^sub>e \<Gamma> c d (Suc (Suc free')) f\<^sub>2
     in ((x, CON ARROW [b, c]) # (y, CON PLUS [a, d]) # cs\<^sub>1 @ cs\<^sub>2, free''))"
-| "assemble_constraints\<^sub>e \<Gamma> x y free \<succ>\<^bsub>F\<^esub> = 
-    ([(x, flatten_type (\<mu> F \<star> F)), (y, flatten_type (\<mu> F))], free)"
-| "assemble_constraints\<^sub>e \<Gamma> x y free \<prec>\<^bsub>F\<^esub> = 
-    ([(x, flatten_type (\<mu> F)), (y, flatten_type (\<mu> F \<star> F))], free)"
-| "assemble_constraints\<^sub>e \<Gamma> x y free \<lparr> f \<rparr>\<^bsub>F\<^esub> = (
-    let (cs, free') = assemble_constraints\<^sub>e \<Gamma> (apply_functor_flat y F) y free f
-    in ((x, CON MU [flatten_funct F]) # cs, free'))"
-| "assemble_constraints\<^sub>e \<Gamma> x y free \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> = (
-    let (cs, free') = assemble_constraints\<^sub>e \<Gamma> x (apply_functor_flat x F) free f
-    in ((y, CON MU [flatten_funct F]) # cs, free'))"
-| "assemble_constraints\<^sub>e \<Gamma> x y free (Var z) = (case \<Gamma> z of 
-      None \<Rightarrow> ([(CON UNIT [], CON IDF [])], free) 
-    | Some (t\<^sub>1, t\<^sub>2) \<Rightarrow> ([(x, flatten_type t\<^sub>1), (y, flatten_type t\<^sub>2)], free))"
+| "assemble_constraints\<^sub>e \<Gamma> x y free \<succ>\<^bsub>n\<^esub> = (case var\<^sub>t_type \<Gamma> n of 
+        Some F \<Rightarrow> ([(x, flatten_type (\<mu> F \<star> F)), (y, flatten_type (\<mu> F))], free)
+      | None \<Rightarrow> ([(CON UNIT [], CON IDF [])], free))"
+| "assemble_constraints\<^sub>e \<Gamma> x y free \<prec>\<^bsub>n\<^esub> = (case var\<^sub>t_type \<Gamma> n of 
+        Some F \<Rightarrow> ([(x, flatten_type (\<mu> F)), (y, flatten_type (\<mu> F \<star> F))], free)
+      | None \<Rightarrow> ([(CON UNIT [], CON IDF [])], free))"
+| "assemble_constraints\<^sub>e \<Gamma> x y free \<lparr> f \<rparr>\<^bsub>n\<^esub> = (case var\<^sub>t_type \<Gamma> n of 
+        Some F \<Rightarrow> let (cs, free') = assemble_constraints\<^sub>e \<Gamma> (apply_functor_flat y F) y free f
+                  in ((x, CON MU [flatten_funct F]) # cs, free')
+      | None \<Rightarrow> ([(CON UNIT [], CON IDF [])], free))"
+| "assemble_constraints\<^sub>e \<Gamma> x y free \<lbrakk> f \<rbrakk>\<^bsub>n\<^esub> = (case var\<^sub>t_type \<Gamma> n of 
+        Some F \<Rightarrow> let (cs, free') = assemble_constraints\<^sub>e \<Gamma> x (apply_functor_flat x F) free f
+                  in ((y, CON MU [flatten_funct F]) # cs, free')
+      | None \<Rightarrow> ([(CON UNIT [], CON IDF [])], free))"
+| "assemble_constraints\<^sub>e \<Gamma> x y free (Var z) = (case var\<^sub>e_type \<Gamma> z of 
+      Some (t\<^sub>1, t\<^sub>2) \<Rightarrow> ([(x, flatten_type t\<^sub>1), (y, flatten_type t\<^sub>2)], free)
+    | None \<Rightarrow> ([(CON UNIT [], CON IDF [])], free))"
 
 | "assemble_constraints\<^sub>v \<Gamma> x free UnitV = ([(x, CON UNIT [])], free)"
 | "assemble_constraints\<^sub>v \<Gamma> x free (PairV v\<^sub>1 v\<^sub>2) = (
@@ -125,34 +128,41 @@ primrec assemble_constraints\<^sub>e :: "(name \<rightharpoonup> type \<times> t
 | "assemble_constraints\<^sub>v \<Gamma> x free (FunV f) = (
     let (cs, free') = assemble_constraints\<^sub>e \<Gamma> (VAR free) (VAR (Suc free)) (Suc (Suc free)) f
     in ((x, CON ARROW [VAR free, VAR (Suc free)]) # cs, free'))"
-| "assemble_constraints\<^sub>v \<Gamma> x free (InjV F v) = (
-    let (cs, free') = assemble_constraints\<^sub>v \<Gamma> (flatten_type (\<mu> F \<star> F)) free v
-    in ((x, flatten_type (\<mu> F)) # cs, free'))"
+| "assemble_constraints\<^sub>v \<Gamma> x free (InjV n v) = (case var\<^sub>t_type \<Gamma> n of 
+      Some F \<Rightarrow> let (cs, free') = assemble_constraints\<^sub>v \<Gamma> (flatten_type (\<mu> F \<star> F)) free v
+                in ((x, flatten_type (\<mu> F)) # cs, free')
+    | None \<Rightarrow> ([(CON UNIT [], CON IDF [])], free))"
+| "assemble_constraints\<^sub>v \<Gamma> x free (VarV n) = (case var\<^sub>v_type \<Gamma> n of 
+      Some t \<Rightarrow> ([(x, flatten_type t)], free)
+    | None \<Rightarrow> ([(CON UNIT [], CON IDF [])], free))"
 
-fun algorithmic_typecheck\<^sub>e :: "(name \<rightharpoonup> type \<times> type) \<Rightarrow> expr \<Rightarrow> (type \<times> type) option" where
+fun algorithmic_typecheck\<^sub>e :: "static_environment \<Rightarrow> expr \<Rightarrow> (type \<times> type) option" where
   "algorithmic_typecheck\<^sub>e \<Gamma> e = 
     Option.bind (unify' (fst (assemble_constraints\<^sub>e \<Gamma> (VAR 0) (VAR 1) 2 e))) (\<lambda>\<phi>. 
       Option.bind (inflate_type (subst\<^sub>\<Theta> \<phi> 0)) (\<lambda>t\<^sub>1. 
         Option.bind (inflate_type (subst\<^sub>\<Theta> \<phi> 1)) (\<lambda>t\<^sub>2. 
           Some (t\<^sub>1, t\<^sub>2))))"
 
-fun algorithmic_typecheck\<^sub>v :: "(name \<rightharpoonup> type \<times> type) \<Rightarrow> val \<Rightarrow> type option" where
+fun algorithmic_typecheck\<^sub>v :: "static_environment \<Rightarrow> val \<Rightarrow> type option" where
   "algorithmic_typecheck\<^sub>v \<Gamma> v = 
     Option.bind (unify' (fst (assemble_constraints\<^sub>v \<Gamma> (VAR 0) 1 v))) (\<lambda>\<phi>. 
       inflate_type (subst\<^sub>\<Theta> \<phi> 0))"
 
-primrec algorithmic_typecheck\<^sub>d :: "(name \<rightharpoonup> type \<times> type) \<Rightarrow> decl \<Rightarrow> (name \<rightharpoonup> type \<times> type) option" 
-    where
+primrec algorithmic_typecheck\<^sub>d :: "static_environment \<Rightarrow> decl \<Rightarrow> static_environment option" where
   "algorithmic_typecheck\<^sub>d \<Gamma> (TypeDecl x F) = Some \<Gamma>"
+| "algorithmic_typecheck\<^sub>d \<Gamma> (ValDecl x v) = 
+    Option.bind (algorithmic_typecheck\<^sub>v \<Gamma> v) (\<lambda>t. 
+      Some (extend\<^sub>v\<^sub>s x t \<Gamma>))"
 | "algorithmic_typecheck\<^sub>d \<Gamma> (ExprDecl x e) = 
     Option.bind (algorithmic_typecheck\<^sub>e \<Gamma> e) (\<lambda>(t\<^sub>1, t\<^sub>2). 
-      Some (\<Gamma>(x \<mapsto> (t\<^sub>1, t\<^sub>2))))"
+      Some (extend\<^sub>e\<^sub>s x (t\<^sub>1, t\<^sub>2) \<Gamma>))"
 
 primrec algorithmic_typecheck\<^sub>p :: "prog \<Rightarrow> type option" where
-  "algorithmic_typecheck\<^sub>p (Prog \<Lambda> e v) = 
-    Option.bind (foldl (\<lambda>\<Gamma> d. Option.bind \<Gamma> (\<lambda>\<Gamma>. algorithmic_typecheck\<^sub>d \<Gamma> d)) (Some Map.empty) \<Lambda>) (\<lambda>\<Gamma>.
+  "algorithmic_typecheck\<^sub>p (Prog \<Lambda> e v) = (
+    let \<Gamma> = foldl (\<lambda>\<Gamma> d. Option.bind \<Gamma> (\<lambda>\<Gamma>. algorithmic_typecheck\<^sub>d \<Gamma> d)) (Some empty_static) \<Lambda>
+    in Option.bind \<Gamma> (\<lambda>\<Gamma>.
       Option.bind (algorithmic_typecheck\<^sub>e \<Gamma> e) (\<lambda>(t\<^sub>1, t\<^sub>2). 
         Option.bind (algorithmic_typecheck\<^sub>v \<Gamma> v) (\<lambda>t\<^sub>3. 
-          if t\<^sub>1 = t\<^sub>3 then Some t\<^sub>2 else None)))"
+          if t\<^sub>1 = t\<^sub>3 then Some t\<^sub>2 else None))))"
 
 end

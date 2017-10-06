@@ -13,55 +13,6 @@ abbreviation TrueV :: val where
 abbreviation FalseV :: val where
   "FalseV \<equiv> InrV UnitV"
 
-abbreviation NatF :: funct where
-  "NatF \<equiv> K \<one> \<Oplus> Id"
-
-abbreviation Nat :: type where
-  "Nat \<equiv> \<mu> NatF"
-
-abbreviation ZeroV :: val where
-  "ZeroV \<equiv> InjV NatF TrueV" (* = InjV NatF (InlV UnitV), but otherwise the pun prevents collapsing *)
-
-abbreviation SuccV :: "val \<Rightarrow> val" where
-  "SuccV v \<equiv> InjV NatF (InrV v)"
-
-abbreviation succ :: expr where
-  "succ \<equiv> \<succ>\<^bsub>NatF\<^esub> \<cdot> \<iota>\<^sub>r"
-
-abbreviation ListF :: "type \<Rightarrow> funct" where
-  "ListF t \<equiv> K \<one> \<Oplus> K t \<Otimes> Id"
-
-abbreviation List :: "type \<Rightarrow> type" where
-  "List t \<equiv> \<mu> (ListF t)"
-
-abbreviation NilV :: "type \<Rightarrow> val" where
-  "NilV t \<equiv> InjV (ListF t) (InlV UnitV)"
-
-abbreviation ConsV :: "type \<Rightarrow> val \<Rightarrow> val \<Rightarrow> val" where
-  "ConsV t v\<^sub>1 v\<^sub>2 \<equiv> InjV (ListF t) (InrV (PairV v\<^sub>1 v\<^sub>2))"
-
-abbreviation cons :: "type \<Rightarrow> expr" ("cons\<^bsub>_\<^esub>") where
-  "cons\<^bsub>t\<^esub> \<equiv> \<succ>\<^bsub>ListF t\<^esub> \<cdot> \<iota>\<^sub>r"
-
-lemma "\<Gamma> \<turnstile> TrueV : Bool" by simp
-lemma "\<Gamma> \<turnstile> FalseV : Bool" by simp
-lemma "\<Gamma> \<turnstile> ZeroV : Nat" by simp
-lemma "\<Gamma> \<turnstile> n : Nat \<Longrightarrow> \<Gamma> \<turnstile> SuccV n : Nat" by simp
-lemma "\<Gamma> \<turnstile> NilV t : List t" by simp
-lemma "\<Gamma> \<turnstile> v\<^sub>1 : t \<Longrightarrow> \<Gamma> \<turnstile> v\<^sub>2 : List t \<Longrightarrow> \<Gamma> \<turnstile> ConsV t v\<^sub>1 v\<^sub>2 : List t" by simp
-
-lemma [simp]: "\<Gamma> \<turnstile> succ : Nat \<rightarrow> Nat"
-  proof -
-    have "\<Gamma> \<turnstile> \<succ>\<^bsub>NatF\<^esub> : Nat \<star> NatF \<rightarrow> Nat" by (metis tc_inj)
-    thus "\<Gamma> \<turnstile> succ : Nat \<rightarrow> Nat" by simp
-  qed
-
-lemma [simp]: "\<Gamma> \<turnstile> cons\<^bsub>t\<^esub> : t \<otimes> List t \<rightarrow> List t"
-  proof -
-    have "\<Gamma> \<turnstile> \<succ>\<^bsub>ListF t\<^esub> : List t \<star> ListF t \<rightarrow> List t" by (metis tc_inj)
-    thus "\<Gamma> \<turnstile> cons\<^bsub>t\<^esub> : t \<otimes> List t \<rightarrow> List t" by simp
-  qed
-
 (* derived combinators *)
 
 abbreviation tuple_pair :: "expr \<Rightarrow> expr \<Rightarrow> expr" (infix "\<triangle>" 80) where

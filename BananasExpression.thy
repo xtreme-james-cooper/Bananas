@@ -515,34 +515,84 @@ theorem total_preservation [simp]: "\<Lambda> \<turnstile> e \<cdot> v \<Down> v
 (* environment lemmas *)
 
 
-(*
-lemma [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> x \<notin> domain\<^sub>s \<Gamma> \<Longrightarrow> extend\<^sub>e\<^sub>s x tt \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
-  and [simp]: "\<Gamma> \<turnstile> v : t \<Longrightarrow> x \<notin> domain\<^sub>s \<Gamma> \<Longrightarrow> extend\<^sub>e\<^sub>s x tt \<Gamma> \<turnstile> v : t"
-  by (induction \<Gamma> e t\<^sub>1 t\<^sub>2 and \<Gamma> v t rule: typecheck\<^sub>e_typecheck\<^sub>v.inducts) simp_all
 
-lemma [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> x \<notin> domain\<^sub>s \<Gamma> \<Longrightarrow> extend\<^sub>v\<^sub>s x t \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
-  and [simp]: "\<Gamma> \<turnstile> v : t \<Longrightarrow> x \<notin> domain\<^sub>s \<Gamma> \<Longrightarrow> extend\<^sub>v\<^sub>s x t \<Gamma> \<turnstile> v : t"
-  by (induction \<Gamma> e t\<^sub>1 t\<^sub>2 and \<Gamma> v t rule: typecheck\<^sub>e_typecheck\<^sub>v.inducts) simp_all
+lemma [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> x \<notin> dom (var\<^sub>e_type \<Gamma>) \<Longrightarrow> 
+    \<Gamma>\<lparr>var\<^sub>e_type := var\<^sub>e_type \<Gamma>(x \<mapsto> (tt\<^sub>1, tt\<^sub>2))\<rparr> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
+  and [simp]: "\<Gamma> \<turnstile> v : t \<Longrightarrow> x \<notin> dom (var\<^sub>e_type \<Gamma>) \<Longrightarrow> 
+    \<Gamma>\<lparr>var\<^sub>e_type := var\<^sub>e_type \<Gamma>(x \<mapsto> (tt\<^sub>1, tt\<^sub>2))\<rparr> \<turnstile> v : t"
+  proof (induction \<Gamma> e t\<^sub>1 t\<^sub>2 and \<Gamma> v t rule: typecheck\<^sub>e_typecheck\<^sub>v.inducts) 
+  case (tc_var \<Gamma> y t\<^sub>1 t\<^sub>2)
+    hence "(var\<^sub>e_type \<Gamma>(x \<mapsto> (tt\<^sub>1, tt\<^sub>2))) y = Some (t\<^sub>1, t\<^sub>2)" by auto
+    hence "\<Gamma>\<lparr>var\<^sub>e_type := var\<^sub>e_type \<Gamma>(x \<mapsto> (tt\<^sub>1, tt\<^sub>2))\<rparr> \<turnstile> Var y : t\<^sub>1 \<rightarrow> t\<^sub>2" by simp
+    thus ?case by blast
+  qed simp_all
 
-lemma [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> combine\<^sub>s \<Gamma>' \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
-  and [simp]: "\<Gamma> \<turnstile> v : t \<Longrightarrow> combine\<^sub>s \<Gamma>' \<Gamma> \<turnstile> v : t"
+lemma [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> x \<notin> dom (var\<^sub>v_type \<Gamma>) \<Longrightarrow> 
+    \<Gamma>\<lparr>var\<^sub>v_type := var\<^sub>v_type \<Gamma>(x \<mapsto> tt)\<rparr> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
+  and [simp]: "\<Gamma> \<turnstile> v : t \<Longrightarrow> x \<notin> dom (var\<^sub>v_type \<Gamma>) \<Longrightarrow> \<Gamma>\<lparr>var\<^sub>v_type := var\<^sub>v_type \<Gamma>(x \<mapsto> tt)\<rparr> \<turnstile> v : t"
   by (induction \<Gamma> e t\<^sub>1 t\<^sub>2 and \<Gamma> v t rule: typecheck\<^sub>e_typecheck\<^sub>v.inducts) simp_all
 
 lemma [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> domain\<^sub>s \<Gamma> \<inter> domain\<^sub>s \<Gamma>' = {} \<Longrightarrow> combine\<^sub>s \<Gamma> \<Gamma>' \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
   and [simp]: "\<Gamma> \<turnstile> v : t \<Longrightarrow> domain\<^sub>s \<Gamma> \<inter> domain\<^sub>s \<Gamma>' = {} \<Longrightarrow> combine\<^sub>s \<Gamma> \<Gamma>' \<turnstile> v : t"
   by (induction \<Gamma> e t\<^sub>1 t\<^sub>2 and \<Gamma> v t rule: typecheck\<^sub>e_typecheck\<^sub>v.inducts) simp_all
 
-*)
+lemma [simp]: "\<And>xa t\<^sub>1' t\<^sub>2'.
+       \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow>
+       var\<^sub>t_type \<Gamma> = var\<^sub>t_bind \<Lambda> \<Longrightarrow>
+       dom (var\<^sub>e_type \<Gamma>) = dom (var\<^sub>e_bind \<Lambda>) \<Longrightarrow>
+       var\<^sub>e_bind \<Lambda> x = None \<Longrightarrow>
+       var\<^sub>v_type \<Gamma> x = None \<Longrightarrow>
+       \<forall>x t\<^sub>1 t\<^sub>2. var\<^sub>e_type \<Gamma> x = Some (t\<^sub>1, t\<^sub>2) \<longrightarrow> (\<exists>e. var\<^sub>e_bind \<Lambda> x = Some e \<and> \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2) \<Longrightarrow>
+       \<forall>x t. var\<^sub>v_type \<Gamma> x = Some t \<longrightarrow> (\<exists>v. var\<^sub>v_bind \<Lambda> x = Some v \<and> \<Gamma> \<turnstile> v : t) \<Longrightarrow>
+       var\<^sub>t_bind \<Lambda> x = None \<Longrightarrow>
+       xa \<noteq> x \<Longrightarrow>
+       var\<^sub>e_type \<Gamma> xa = Some (t\<^sub>1', t\<^sub>2') \<Longrightarrow>
+       \<exists>e. var\<^sub>e_bind \<Lambda> xa = Some e \<and> \<Gamma>\<lparr>var\<^sub>e_type := var\<^sub>e_type \<Gamma>(x \<mapsto> (t\<^sub>1, t\<^sub>2))\<rparr> \<turnstile> e : t\<^sub>1' \<rightarrow> t\<^sub>2'"
+  by simp
+
+lemma [simp]: "\<And>xa t. \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow>
+            var\<^sub>t_type \<Gamma> = var\<^sub>t_bind \<Lambda> \<Longrightarrow>
+            dom (var\<^sub>e_type \<Gamma>) = dom (var\<^sub>e_bind \<Lambda>) \<Longrightarrow>
+            var\<^sub>e_bind \<Lambda> x = None \<Longrightarrow>
+            var\<^sub>v_type \<Gamma> x = None \<Longrightarrow>
+            \<forall>x t\<^sub>1 t\<^sub>2. var\<^sub>e_type \<Gamma> x = Some (t\<^sub>1, t\<^sub>2) \<longrightarrow> (\<exists>e. var\<^sub>e_bind \<Lambda> x = Some e \<and> \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2) \<Longrightarrow>
+            \<forall>x t. var\<^sub>v_type \<Gamma> x = Some t \<longrightarrow> (\<exists>v. var\<^sub>v_bind \<Lambda> x = Some v \<and> \<Gamma> \<turnstile> v : t) \<Longrightarrow>
+            var\<^sub>t_bind \<Lambda> x = None \<Longrightarrow>
+            var\<^sub>v_type \<Gamma> xa = Some t \<Longrightarrow> \<exists>v. var\<^sub>v_bind \<Lambda> xa = Some v \<and> \<Gamma>\<lparr>var\<^sub>e_type := var\<^sub>e_type \<Gamma>(x \<mapsto> (t\<^sub>1, t\<^sub>2))\<rparr> \<turnstile> v : t"
+  by simp
+
+lemma [simp]: "\<And>xa t\<^sub>1 t\<^sub>2.
+       \<Gamma> \<turnstile> v : t \<Longrightarrow>
+       var\<^sub>t_type \<Gamma> = var\<^sub>t_bind \<Lambda> \<Longrightarrow>
+       dom (var\<^sub>e_type \<Gamma>) = dom (var\<^sub>e_bind \<Lambda>) \<Longrightarrow>
+       var\<^sub>e_bind \<Lambda> x = None \<Longrightarrow>
+       var\<^sub>v_type \<Gamma> x = None \<Longrightarrow>
+       \<forall>x t\<^sub>1 t\<^sub>2. var\<^sub>e_type \<Gamma> x = Some (t\<^sub>1, t\<^sub>2) \<longrightarrow> (\<exists>e. var\<^sub>e_bind \<Lambda> x = Some e \<and> \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2) \<Longrightarrow>
+       \<forall>x t. var\<^sub>v_type \<Gamma> x = Some t \<longrightarrow> (\<exists>v. var\<^sub>v_bind \<Lambda> x = Some v \<and> \<Gamma> \<turnstile> v : t) \<Longrightarrow>
+       var\<^sub>t_bind \<Lambda> x = None \<Longrightarrow>
+       var\<^sub>e_type \<Gamma> xa = Some (t\<^sub>1, t\<^sub>2) \<Longrightarrow> \<exists>e. var\<^sub>e_bind \<Lambda> xa = Some e \<and> \<Gamma>\<lparr>var\<^sub>v_type := var\<^sub>v_type \<Gamma>(x \<mapsto> t)\<rparr> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
+  by simp
+
+lemma [simp]: "\<And>xa ta. \<Gamma> \<turnstile> v : t \<Longrightarrow>
+             var\<^sub>t_type \<Gamma> = var\<^sub>t_bind \<Lambda> \<Longrightarrow>
+             dom (var\<^sub>e_type \<Gamma>) = dom (var\<^sub>e_bind \<Lambda>) \<Longrightarrow>
+             var\<^sub>e_bind \<Lambda> x = None \<Longrightarrow>
+             var\<^sub>v_type \<Gamma> x = None \<Longrightarrow>
+             \<forall>x t\<^sub>1 t\<^sub>2. var\<^sub>e_type \<Gamma> x = Some (t\<^sub>1, t\<^sub>2) \<longrightarrow> (\<exists>e. var\<^sub>e_bind \<Lambda> x = Some e \<and> \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2) \<Longrightarrow>
+             \<forall>x t. var\<^sub>v_type \<Gamma> x = Some t \<longrightarrow> (\<exists>v. var\<^sub>v_bind \<Lambda> x = Some v \<and> \<Gamma> \<turnstile> v : t) \<Longrightarrow>
+             var\<^sub>t_bind \<Lambda> x = None \<Longrightarrow>
+             xa \<noteq> x \<Longrightarrow> var\<^sub>v_type \<Gamma> xa = Some ta \<Longrightarrow> \<exists>v. var\<^sub>v_bind \<Lambda> xa = Some v \<and> \<Gamma>\<lparr>var\<^sub>v_type := var\<^sub>v_type \<Gamma>(x \<mapsto> t)\<rparr> \<turnstile> v : ta"
+  by simp
 
 lemma [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<tturnstile> \<Lambda> \<Longrightarrow> x \<notin> domain\<^sub>s \<Gamma> \<Longrightarrow> 
     extend\<^sub>e\<^sub>s x (t\<^sub>1, t\<^sub>2) \<Gamma> \<tturnstile> extend\<^sub>e\<^sub>d x e \<Lambda>"
-  by simp
+  by (auto simp add: typecheck_environment_def extend\<^sub>e\<^sub>s_def extend\<^sub>e\<^sub>d_def domain\<^sub>s_def)
 
 lemma [simp]: "\<Gamma> \<turnstile> v : t \<Longrightarrow> \<Gamma> \<tturnstile> \<Lambda> \<Longrightarrow> x \<notin> domain\<^sub>s \<Gamma> \<Longrightarrow> extend\<^sub>v\<^sub>s x t \<Gamma> \<tturnstile> extend\<^sub>v\<^sub>d x v \<Lambda>"
-  by simp
+  by (auto simp add: typecheck_environment_def extend\<^sub>v\<^sub>s_def extend\<^sub>v\<^sub>d_def domain\<^sub>s_def)
 
 lemma typecheck_combine [simp]: "\<Gamma> \<tturnstile> \<Lambda> \<Longrightarrow> \<Gamma>' \<tturnstile> \<Lambda>' \<Longrightarrow> domain\<^sub>s \<Gamma> \<inter> domain\<^sub>s \<Gamma>' = {} \<Longrightarrow> 
     combine\<^sub>s \<Gamma> \<Gamma>' \<tturnstile> combine\<^sub>d \<Lambda> \<Lambda>'"
-  by simp
+  by (auto simp add: typecheck_environment_def combine\<^sub>s_def combine\<^sub>d_def domain\<^sub>s_def)
 
 end

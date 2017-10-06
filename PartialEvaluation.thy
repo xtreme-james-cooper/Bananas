@@ -2,7 +2,7 @@ theory PartialEvaluation
 imports BananasProgram
 begin
 
-fun partial_evaluation :: "(name \<rightharpoonup> expr) \<Rightarrow> nat \<Rightarrow> expr \<Rightarrow> val \<Rightarrow> val option" where
+fun partial_evaluation :: "dynamic_environment \<Rightarrow> nat \<Rightarrow> expr \<Rightarrow> val \<Rightarrow> val option" where
   "partial_evaluation \<Lambda> n \<epsilon> v = Some v"
 | "partial_evaluation \<Lambda> n (\<kappa> v\<^sub>1) v\<^sub>2 = Some v\<^sub>1"
 | "partial_evaluation \<Lambda> n (f \<cdot> g) v = (case partial_evaluation \<Lambda> n g v of 
@@ -34,15 +34,19 @@ fun partial_evaluation :: "(name \<rightharpoonup> expr) \<Rightarrow> nat \<Rig
 | "partial_evaluation \<Lambda> n $ _ = None"
 | "partial_evaluation \<Lambda> n (g \<leftarrow> f) (FunV e) = Some (FunV (g \<cdot> e \<cdot> f))"
 | "partial_evaluation \<Lambda> n (g \<leftarrow> f) _ = None"
-| "partial_evaluation \<Lambda> n \<succ>\<^bsub>F\<^esub> v = Some (InjV F v)"
-| "partial_evaluation \<Lambda> n \<prec>\<^bsub>F\<^esub> (InjV G v) = (if F = G then Some v else None)"
-| "partial_evaluation \<Lambda> n \<prec>\<^bsub>F\<^esub> _ = None"
-| "partial_evaluation \<Lambda> (Suc n) \<lparr> f \<rparr>\<^bsub>F\<^esub> v = partial_evaluation \<Lambda> n (f \<cdot> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>F\<^esub>) v"
-| "partial_evaluation \<Lambda> 0 \<lparr> f \<rparr>\<^bsub>F\<^esub> _ = None"
-| "partial_evaluation \<Lambda> (Suc n) \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> v = partial_evaluation \<Lambda> n (\<succ>\<^bsub>F\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<cdot> f) v"
-| "partial_evaluation \<Lambda> 0 \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> _ = None"
+| "partial_evaluation \<Lambda> n \<succ>\<^bsub>x\<^esub> v = Some (InjV x v)"
+| "partial_evaluation \<Lambda> n \<prec>\<^bsub>x\<^esub> (InjV y v) = Some v"
+| "partial_evaluation \<Lambda> n \<prec>\<^bsub>x\<^esub> _ = None"
+| "partial_evaluation \<Lambda> (Suc n) \<lparr> f \<rparr>\<^bsub>x\<^esub> v = (case var\<^sub>t_bind \<Lambda> x of 
+      Some F \<Rightarrow> partial_evaluation \<Lambda> n (f \<cdot> \<lparr> f \<rparr>\<^bsub>x\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>x\<^esub>) v
+    | None \<Rightarrow> None)"
+| "partial_evaluation \<Lambda> 0 \<lparr> f \<rparr>\<^bsub>x\<^esub> _ = None"
+| "partial_evaluation \<Lambda> (Suc n) \<lbrakk> f \<rbrakk>\<^bsub>x\<^esub> v = (case var\<^sub>t_bind \<Lambda> x of 
+      Some F \<Rightarrow> partial_evaluation \<Lambda> n (\<succ>\<^bsub>x\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>x\<^esub> \<bullet> F \<cdot> f) v
+    | None \<Rightarrow> None)"
+| "partial_evaluation \<Lambda> 0 \<lbrakk> f \<rbrakk>\<^bsub>x\<^esub> _ = None"
 | "partial_evaluation \<Lambda> 0 (Var x) _ = None"
-| "partial_evaluation \<Lambda> (Suc n) (Var x) v = (case \<Lambda> x of 
+| "partial_evaluation \<Lambda> (Suc n) (Var x) v = (case var\<^sub>e_bind \<Lambda> x of 
       Some e \<Rightarrow> partial_evaluation \<Lambda> n e v 
     | None \<Rightarrow> None )"
 
@@ -71,16 +75,18 @@ lemma soundness': "partial_evaluation \<Lambda> n e v = Some v' \<Longrightarrow
     ultimately show ?case by (metis tev_step)
   next case 27
     thus ?case by (simp split: if_splits)
-  next case (29 \<Lambda> n f F v)
-    hence "\<Lambda> \<turnstile> (f \<cdot> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>F\<^esub>) \<cdot> v \<Down> v'" by (auto split: option.splits)
-    moreover have "\<Lambda> \<turnstile> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<cdot> v \<leadsto> (f \<cdot> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>F\<^esub>) \<cdot> v" by simp
+  next case (29 \<Lambda> n f x v)
+    moreover then obtain F where "var\<^sub>t_bind \<Lambda> x = Some F \<and> 
+      partial_evaluation \<Lambda> n (f \<cdot> \<lparr> f \<rparr>\<^bsub>x\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>x\<^esub>) v = Some v'" by (auto split: option.splits)
+    moreover hence "\<Lambda> \<turnstile> \<lparr> f \<rparr>\<^bsub>x\<^esub> \<cdot> v \<leadsto> (f \<cdot> \<lparr> f \<rparr>\<^bsub>x\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>x\<^esub>) \<cdot> v" by simp
     ultimately show ?case by (metis tev_step)
-  next case (31 \<Lambda> n f F v)
-    hence "\<Lambda> \<turnstile> (\<succ>\<^bsub>F\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<cdot> f) \<cdot> v \<Down> v'" by (auto split: option.splits)
-    moreover have "\<Lambda> \<turnstile> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<cdot> v \<leadsto> (\<succ>\<^bsub>F\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<cdot> f) \<cdot> v" by simp
+  next case (31 \<Lambda> n f x v)
+    moreover then obtain F where "var\<^sub>t_bind \<Lambda> x = Some F \<and> 
+      partial_evaluation \<Lambda> n (\<succ>\<^bsub>x\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>x\<^esub> \<bullet> F \<cdot> f) v = Some v'" by (auto split: option.splits)
+    moreover hence "\<Lambda> \<turnstile> \<lbrakk> f \<rbrakk>\<^bsub>x\<^esub> \<cdot> v \<leadsto> (\<succ>\<^bsub>x\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>x\<^esub> \<bullet> F \<cdot> f) \<cdot> v" by simp
     ultimately show ?case by (metis tev_step)
   next case (34 \<Lambda> n x v)
-    moreover then obtain e where E: "\<Lambda> x = Some e \<and> partial_evaluation \<Lambda> n e v = Some v'" 
+    moreover then obtain e where E: "var\<^sub>e_bind \<Lambda> x = Some e \<and> partial_evaluation \<Lambda> n e v = Some v'" 
       by (auto split: option.splits)
     ultimately have "\<Lambda> \<turnstile> e \<cdot> v \<Down> v'" by simp
     moreover from E have "\<Lambda> \<turnstile> Var x \<cdot> v \<leadsto> e \<cdot> v" by simp
@@ -116,33 +122,35 @@ lemma pev_larger [elim]: "partial_evaluation \<Lambda> n e v = Some v' \<Longrig
         ultimately have "partial_evaluation \<Lambda> m e v = Some v'" by blast
         thus ?case by simp
       qed simp_all
-  next case (29 \<Lambda> n f F v)
+  next case (29 \<Lambda> n f x v)
     thus ?case
       proof (induction m)
       case (Suc m)
-        from Suc(3) obtain v\<^sub>1 v\<^sub>2 where "partial_evaluation \<Lambda> n \<prec>\<^bsub>F\<^esub> v = Some v\<^sub>1 \<and> 
-          partial_evaluation \<Lambda> n (\<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F) v\<^sub>1 = Some v\<^sub>2 \<and> partial_evaluation \<Lambda> n f v\<^sub>2 = Some v'" 
-            by (auto split: option.splits)
-        hence "partial_evaluation \<Lambda> n (f \<cdot> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>F\<^esub>) v = Some v'" by simp
-        with Suc have "partial_evaluation \<Lambda> m (f \<cdot> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>F\<^esub>) v = Some v'" by blast
-        thus ?case by simp
+        moreover from Suc(3) obtain v\<^sub>1 v\<^sub>2 F where F: "var\<^sub>t_bind \<Lambda> x = Some F \<and> 
+          partial_evaluation \<Lambda> n \<prec>\<^bsub>x\<^esub> v = Some v\<^sub>1 \<and> 
+            partial_evaluation \<Lambda> n (\<lparr> f \<rparr>\<^bsub>x\<^esub> \<bullet> F) v\<^sub>1 = Some v\<^sub>2 \<and> 
+              partial_evaluation \<Lambda> n f v\<^sub>2 = Some v'" by (auto split: option.splits)
+        moreover hence "partial_evaluation \<Lambda> n (f \<cdot> \<lparr> f \<rparr>\<^bsub>x\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>x\<^esub>) v = Some v'" by simp
+        ultimately have "partial_evaluation \<Lambda> m (f \<cdot> \<lparr> f \<rparr>\<^bsub>x\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>x\<^esub>) v = Some v'" by blast
+        with F show ?case by simp
       qed simp_all
-  next case (31 \<Lambda> n f F v)
+  next case (31 \<Lambda> n f x v)
     thus ?case
       proof (induction m)
       case (Suc m)
-        from Suc(3) obtain v\<^sub>1 v\<^sub>2 where "partial_evaluation \<Lambda> n f v = Some v\<^sub>1 \<and> 
-          partial_evaluation \<Lambda> n (\<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F) v\<^sub>1 = Some v\<^sub>2 \<and> 
-            partial_evaluation \<Lambda> n \<succ>\<^bsub>F\<^esub> v\<^sub>2 = Some v'" by (auto split: option.splits)
-        hence "partial_evaluation \<Lambda> n (\<succ>\<^bsub>F\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<cdot> f) v = Some v'" by simp
-        with Suc have "partial_evaluation \<Lambda> m (\<succ>\<^bsub>F\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<cdot> f) v = Some v'" by blast
-        thus ?case by simp
+        moreover from Suc(3) obtain v\<^sub>1 v\<^sub>2 F where F: "var\<^sub>t_bind \<Lambda> x = Some F \<and> 
+          partial_evaluation \<Lambda> n f v = Some v\<^sub>1 \<and>
+            partial_evaluation \<Lambda> n (\<lbrakk> f \<rbrakk>\<^bsub>x\<^esub> \<bullet> F) v\<^sub>1 = Some v\<^sub>2 \<and> 
+              partial_evaluation \<Lambda> n \<succ>\<^bsub>x\<^esub> v\<^sub>2 = Some v'" by (auto split: option.splits)
+        moreover hence "partial_evaluation \<Lambda> n (\<succ>\<^bsub>x\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>x\<^esub> \<bullet> F \<cdot> f) v = Some v'" by simp
+        ultimately have "partial_evaluation \<Lambda> m (\<succ>\<^bsub>x\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>x\<^esub> \<bullet> F \<cdot> f) v = Some v'" by blast
+        with F show ?case by simp
       qed simp_all
   next case (34 \<Lambda> n x v)
     thus ?case
       proof (induction m)
       case (Suc m)
-        from Suc(3) obtain e where "\<Lambda> x = Some e \<and> partial_evaluation \<Lambda> n e v = Some v'" 
+        from Suc(3) obtain e where "var\<^sub>e_bind \<Lambda> x = Some e \<and> partial_evaluation \<Lambda> n e v = Some v'" 
           by (auto split: option.splits)
         moreover with Suc have "partial_evaluation \<Lambda> m e v = Some v'" by blast
         ultimately show ?case by simp
@@ -188,13 +196,17 @@ lemma completeness': "\<Lambda> \<turnstile> e \<cdot> v \<Down> v' \<Longrighta
         then obtain n where "partial_evaluation \<Lambda> n e v = Some v''" by blast
         hence "partial_evaluation \<Lambda> (Suc n) $ (PairV (FunV e) v) = Some v''" by simp
         thus ?case by fastforce
-      next case (ev_cata \<Lambda> f F v)
-        then obtain n where "partial_evaluation \<Lambda> n (f \<cdot> \<lparr> f \<rparr>\<^bsub>F\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>F\<^esub>) v = Some v''" by blast
-        hence "partial_evaluation \<Lambda> (Suc n) \<lparr> f \<rparr>\<^bsub>F\<^esub> v = Some v''" by simp
+      next case ev_outj
+        thus ?case by simp
+      next case (ev_cata \<Lambda> x F f v)
+        moreover then obtain n where "partial_evaluation \<Lambda> n (f \<cdot> \<lparr> f \<rparr>\<^bsub>x\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>x\<^esub>) v = Some v''" 
+          by blast
+        ultimately have "partial_evaluation \<Lambda> (Suc n) \<lparr> f \<rparr>\<^bsub>x\<^esub> v = Some v''" by simp
         thus ?case by fastforce
-      next case (ev_ana \<Lambda> f F v)
-        then obtain n where "partial_evaluation \<Lambda> n (\<succ>\<^bsub>F\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> \<bullet> F \<cdot> f) v = Some v''" by blast
-        hence "partial_evaluation \<Lambda> (Suc n) \<lbrakk> f \<rbrakk>\<^bsub>F\<^esub> v = Some v''" by simp
+      next case (ev_ana \<Lambda> x F f v)
+        moreover then obtain n where "partial_evaluation \<Lambda> n (\<succ>\<^bsub>x\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>x\<^esub> \<bullet> F \<cdot> f) v = Some v''" 
+          by blast
+        ultimately have "partial_evaluation \<Lambda> (Suc n) \<lbrakk> f \<rbrakk>\<^bsub>x\<^esub> v = Some v''" by simp
         thus ?case by fastforce
       next case (ev_var \<Lambda> x e v)
         moreover then obtain n where "partial_evaluation \<Lambda> n e v = Some v''" by blast
