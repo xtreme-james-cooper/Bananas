@@ -3,7 +3,7 @@ imports BananasExpression
 begin
 
 datatype decl = 
-  TypeDecl name "(name \<times> type list) list"
+  TypeDecl name "(name \<times> name list) list"
 | ValDecl name val
 | ExprDecl name expr
 
@@ -17,28 +17,37 @@ fun binders :: "decl list \<Rightarrow> name set" where
 
 datatype prog = Prog "decl list" expr val
 
-fun typecheck\<^sub>c\<^sub>e :: "funct \<Rightarrow> (name \<times> type list) list \<Rightarrow> (name \<rightharpoonup> type \<times> type)" where
-  "typecheck\<^sub>c\<^sub>e F [] y = None" 
-| "typecheck\<^sub>c\<^sub>e F ((x, ts) # cts) y = 
-    (if y = x then Some (foldr (op \<otimes>) ts \<one>, \<mu> F) else typecheck\<^sub>c\<^sub>e F cts y)"
+inductive typecheck\<^sub>c\<^sub>e :: "static_environment \<Rightarrow> funct \<Rightarrow> (name \<times> name list) list \<Rightarrow> 
+    (name \<rightharpoonup> type \<times> type) \<Rightarrow> bool" where
+  "typecheck\<^sub>c\<^sub>e \<Gamma> F [] Map.empty" 
+| "typecheck\<^sub>c\<^sub>e \<Gamma> F cts \<Gamma>' \<Longrightarrow> those (map (map_option \<mu> o var\<^sub>t_type \<Gamma>) ts) = Some ts' \<Longrightarrow> 
+    typecheck\<^sub>c\<^sub>e \<Gamma> F ((x, ts) # cts) (\<Gamma>'(x \<mapsto> (foldr (op \<otimes>) ts' \<one>, \<mu> F)))"
 
-definition typecheck\<^sub>c\<^sub>v :: "funct \<Rightarrow> (name \<times> type list) list \<Rightarrow> (name \<rightharpoonup> type)" where
+definition typecheck\<^sub>c\<^sub>v :: "funct \<Rightarrow> (name \<times> name list) list \<Rightarrow> (name \<rightharpoonup> type list \<times> type)" where
   "typecheck\<^sub>c\<^sub>v F cts x = (if x \<in> fst ` set cts then Some (\<mu> F) else None)"
 
-primrec typecheck\<^sub>c\<^sub>t :: "name \<times> type list \<Rightarrow> funct" where
-  "typecheck\<^sub>c\<^sub>t (x, ts) = K (foldr (op \<otimes>) ts \<one>)"
+fun typecheck\<^sub>c\<^sub>t_arg :: "static_environment \<Rightarrow> name \<Rightarrow> name \<Rightarrow> funct option" where
+  "typecheck\<^sub>c\<^sub>t_arg \<Gamma> tn t = (if t = tn then Some Id else map_option (K o \<mu>) (var\<^sub>t_type \<Gamma> t))"
 
-definition typecheck\<^sub>c\<^sub>t\<^sub>s :: "(name \<times> type list) list \<Rightarrow> funct" where
-  "typecheck\<^sub>c\<^sub>t\<^sub>s cts = foldr (op \<Oplus> o typecheck\<^sub>c\<^sub>t) cts (K \<zero>)"
+primrec typecheck\<^sub>c\<^sub>t :: "static_environment \<Rightarrow> name \<Rightarrow> name \<times> name list \<Rightarrow> funct option" where
+  "typecheck\<^sub>c\<^sub>t \<Gamma> tn (x, ts) = 
+    map_option (\<lambda>fs. foldr (op \<Otimes>) fs (K \<one>)) (those (map (typecheck\<^sub>c\<^sub>t_arg \<Gamma> tn) ts))"
 
-definition typecheck\<^sub>d :: "name \<Rightarrow> (name \<times> type list) list \<Rightarrow> static_environment" where
-  "typecheck\<^sub>d n cts = (
-      let F = typecheck\<^sub>c\<^sub>t\<^sub>s cts 
-      in \<lparr> var\<^sub>e_type = typecheck\<^sub>c\<^sub>e F cts, var\<^sub>v_type = typecheck\<^sub>c\<^sub>v F cts, var\<^sub>t_type = [n \<mapsto> F] \<rparr>)"
+definition typecheck\<^sub>c\<^sub>t\<^sub>s :: "static_environment \<Rightarrow> name \<Rightarrow> (name \<times> name list) list \<Rightarrow> funct option" 
+    where
+  "typecheck\<^sub>c\<^sub>t\<^sub>s \<Gamma> x cts = 
+    map_option (\<lambda>fs. foldr (op \<Oplus>) fs (K \<zero>)) (those (map (typecheck\<^sub>c\<^sub>t \<Gamma> x) cts))"
+
+inductive typecheck\<^sub>d\<^sub>t :: "static_environment \<Rightarrow> name \<Rightarrow> (name \<times> name list) list \<Rightarrow> 
+    static_environment \<Rightarrow> bool" where
+  "typecheck\<^sub>c\<^sub>t\<^sub>s \<Gamma> n cts = Some F \<Longrightarrow> typecheck\<^sub>c\<^sub>e \<Gamma> F cts \<Gamma>' \<Longrightarrow> 
+      typecheck\<^sub>d\<^sub>t \<Gamma> n cts \<lparr> var\<^sub>e_type = \<Gamma>', 
+                            var\<^sub>v_type = typecheck\<^sub>c\<^sub>v F cts, 
+                            var\<^sub>t_type = [n \<mapsto> F] \<rparr>"
 
 inductive typecheck_decl :: "static_environment \<Rightarrow> decl \<Rightarrow> static_environment \<Rightarrow> bool" 
     (infix "\<Turnstile> _ :" 60) where
-  tcd_type [simp]: "\<Gamma> \<Turnstile> TypeDecl x cts : combine\<^sub>s \<Gamma> (typecheck\<^sub>d x cts)"
+  tcd_type [simp]: "typecheck\<^sub>d\<^sub>t \<Gamma> x cts \<Gamma>' \<Longrightarrow> \<Gamma> \<Turnstile> TypeDecl x cts : combine\<^sub>s \<Gamma> \<Gamma>'"
 | tcd_val [simp]: "\<Gamma> \<turnstile> v : t \<Longrightarrow> \<Gamma> \<Turnstile> ValDecl x v : extend\<^sub>v\<^sub>s x t \<Gamma>"
 | tcd_expr [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<Turnstile> ExprDecl x e : extend\<^sub>e\<^sub>s x (t\<^sub>1, t\<^sub>2) \<Gamma>"
 
@@ -71,26 +80,26 @@ primrec right_inject :: "nat \<Rightarrow> expr" where
   "right_inject 0 = \<iota>\<^sub>l"
 | "right_inject (Suc x) = \<iota>\<^sub>r \<cdot> right_inject x"
 
-fun assemble_context\<^sub>c\<^sub>e :: "name \<Rightarrow> nat \<Rightarrow> (name \<times> type list) list \<Rightarrow> (name \<rightharpoonup> expr)" where
+fun assemble_context\<^sub>c\<^sub>e :: "name \<Rightarrow> nat \<Rightarrow> (name \<times> name list) list \<Rightarrow> (name \<rightharpoonup> expr)" where
   "assemble_context\<^sub>c\<^sub>e n depth [] = Map.empty"
 | "assemble_context\<^sub>c\<^sub>e n depth ((x, t) # cts) = 
     (assemble_context\<^sub>c\<^sub>e n (Suc depth) cts)(x \<mapsto> \<succ>\<^bsub>n\<^esub> \<cdot> right_inject depth)"
 
-fun assemble_context\<^sub>c\<^sub>v :: "name \<Rightarrow> (name \<times> type list) list \<Rightarrow> (name \<rightharpoonup> val)" where
+fun assemble_context\<^sub>c\<^sub>v :: "name \<Rightarrow> (name \<times> name list) list \<Rightarrow> (name \<rightharpoonup> val list \<Rightarrow> val)" where
   "assemble_context\<^sub>c\<^sub>v n [] = Map.empty"
-| "assemble_context\<^sub>c\<^sub>v n ((x, t) # cts) = (assemble_context\<^sub>c\<^sub>v n cts)(x \<mapsto> UnitV)" (* TODO! *)
+| "assemble_context\<^sub>c\<^sub>v n ((x, ts) # cts) = (assemble_context\<^sub>c\<^sub>v n cts)(x \<mapsto> \<lambda>vs. foldr PairV vs UnitV)"
 
-primrec assemble_context' :: "decl \<Rightarrow> dynamic_environment" where
-  "assemble_context' (TypeDecl x cts) = \<lparr> 
+primrec assemble_context' :: "static_environment \<Rightarrow> decl \<Rightarrow> dynamic_environment" where
+  "assemble_context' \<Gamma> (TypeDecl x cts) = \<lparr> 
     var\<^sub>e_bind = assemble_context\<^sub>c\<^sub>e x 0 cts, 
     var\<^sub>v_bind = assemble_context\<^sub>c\<^sub>v x cts, 
-    var\<^sub>t_bind = [x \<mapsto> typecheck\<^sub>c\<^sub>t\<^sub>s cts] \<rparr>"
-| "assemble_context' (ValDecl x v) = empty_dynamic \<lparr> var\<^sub>v_bind := [x \<mapsto> v] \<rparr>"
-| "assemble_context' (ExprDecl x e) = empty_dynamic \<lparr> var\<^sub>e_bind := [x \<mapsto> e] \<rparr>"
+    var\<^sub>t_bind = [x \<mapsto> the (typecheck\<^sub>c\<^sub>t\<^sub>s \<Gamma> x cts)] \<rparr>" (* TODO get rid of "the" *)
+| "assemble_context' \<Gamma> (ValDecl x v) = empty_dynamic \<lparr> var\<^sub>v_bind := [x \<mapsto> \<lambda>x. v] \<rparr>"
+| "assemble_context' \<Gamma> (ExprDecl x e) = empty_dynamic \<lparr> var\<^sub>e_bind := [x \<mapsto> e] \<rparr>"
 
 primrec assemble_context :: "decl list \<Rightarrow> dynamic_environment" where
   "assemble_context [] = empty_dynamic"
-| "assemble_context (\<delta> # \<Lambda>) = combine\<^sub>d (assemble_context' \<delta>) (assemble_context \<Lambda>)"
+| "assemble_context (\<delta> # \<Lambda>) = combine\<^sub>d (assemble_context' empty_static \<delta>) (assemble_context \<Lambda>)"
 
 primrec is_completed :: "prog \<Rightarrow> bool" where
   "is_completed (Prog \<Lambda> e v) = (e = \<epsilon>)"
@@ -117,10 +126,10 @@ lemma [simp]: "combine\<^sub>d \<Lambda> (empty_dynamic\<lparr>var\<^sub>e_bind 
 lemma [simp]: "combine\<^sub>d \<Lambda> (empty_dynamic\<lparr>var\<^sub>v_bind := [x \<mapsto> v]\<rparr>) = extend\<^sub>v\<^sub>d x v \<Lambda>"
   by (simp add: combine\<^sub>d_def empty_dynamic_def extend\<^sub>v\<^sub>d_def)
 
-lemma [simp]: "typecheck\<^sub>c\<^sub>e F cts x = Some (t\<^sub>1, t\<^sub>2) \<Longrightarrow> \<exists>e. assemble_context\<^sub>c\<^sub>e n d cts x = Some e"
+lemma [simp]: "typecheck\<^sub>c\<^sub>e \<Gamma> F cts x = Some (t\<^sub>1, t\<^sub>2) \<Longrightarrow> \<exists>e. assemble_context\<^sub>c\<^sub>e n d cts x = Some e"
   by (induction F cts x arbitrary: d rule: typecheck\<^sub>c\<^sub>e.induct) auto
 
-lemma [simp]: "assemble_context\<^sub>c\<^sub>e n d cts x = Some e \<Longrightarrow> \<exists>t\<^sub>1 t\<^sub>2. typecheck\<^sub>c\<^sub>e F cts x = Some (t\<^sub>1, t\<^sub>2)"
+lemma [simp]: "assemble_context\<^sub>c\<^sub>e n d cts x = Some e \<Longrightarrow> \<exists>t\<^sub>1 t\<^sub>2. typecheck\<^sub>c\<^sub>e \<Gamma> F cts x = Some (t\<^sub>1, t\<^sub>2)"
   by (induction n d cts arbitrary: e rule: assemble_context\<^sub>c\<^sub>e.induct) auto
 
 lemma [elim]: "\<Gamma> \<turnstile> right_inject (length cts') : t\<^sub>1 \<rightarrow> t\<^sub>2 \<star> typecheck\<^sub>c\<^sub>t\<^sub>s (cts' @ cts) \<Longrightarrow> 

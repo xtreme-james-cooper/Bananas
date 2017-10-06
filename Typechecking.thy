@@ -148,8 +148,26 @@ fun algorithmic_typecheck\<^sub>v :: "static_environment \<Rightarrow> val \<Rig
     Option.bind (unify' (fst (assemble_constraints\<^sub>v \<Gamma> (VAR 0) 1 v))) (\<lambda>\<phi>. 
       inflate_type (subst\<^sub>\<Theta> \<phi> 0))"
 
+fun algorithmic_typecheck\<^sub>c\<^sub>e :: "static_environment \<Rightarrow> funct \<Rightarrow> (name \<times> name list) list \<Rightarrow> 
+    (name \<rightharpoonup> type \<times> type)" where
+  "algorithmic_typecheck\<^sub>c\<^sub>e \<Gamma> F [] y = None" 
+| "algorithmic_typecheck\<^sub>c\<^sub>e \<Gamma> F ((x, ts) # cts) y = 
+    (if y = x 
+     then case those (map (map_option \<mu> o var\<^sub>t_type \<Gamma>) ts) of
+              Some ts' \<Rightarrow> Some (foldr (op \<otimes>) ts' \<one>, \<mu> F) 
+            | None \<Rightarrow> None
+     else algorithmic_typecheck\<^sub>c\<^sub>e \<Gamma> F cts y)"
+
+definition algorithmic_typecheck\<^sub>d\<^sub>t :: "static_environment \<Rightarrow> name \<Rightarrow> (name \<times> name list) list \<Rightarrow> 
+    static_environment option" where
+  "algorithmic_typecheck\<^sub>d\<^sub>t \<Gamma> n cts = (case typecheck\<^sub>c\<^sub>t\<^sub>s \<Gamma> n cts of
+      Some F \<Rightarrow> Some \<lparr> var\<^sub>e_type = algorithmic_typecheck\<^sub>c\<^sub>e \<Gamma> F cts, 
+                       var\<^sub>v_type = typecheck\<^sub>c\<^sub>v F cts, 
+                       var\<^sub>t_type = [n \<mapsto> F] \<rparr>
+    | None \<Rightarrow> None)"
+
 primrec algorithmic_typecheck\<^sub>d :: "static_environment \<Rightarrow> decl \<Rightarrow> static_environment option" where
-  "algorithmic_typecheck\<^sub>d \<Gamma> (TypeDecl x F) = Some \<Gamma>"
+  "algorithmic_typecheck\<^sub>d \<Gamma> (TypeDecl x cts) = algorithmic_typecheck\<^sub>d\<^sub>t \<Gamma> x cts"
 | "algorithmic_typecheck\<^sub>d \<Gamma> (ValDecl x v) = 
     Option.bind (algorithmic_typecheck\<^sub>v \<Gamma> v) (\<lambda>t. 
       Some (extend\<^sub>v\<^sub>s x t \<Gamma>))"

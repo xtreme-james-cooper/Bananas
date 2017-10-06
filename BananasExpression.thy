@@ -33,19 +33,18 @@ and val =
 | InlV val | InrV val
 | FunV expr
 | InjV name val 
-| VarV name
 
 (* typechecking *)
 
 record static_environment = 
   var\<^sub>e_type :: "name \<rightharpoonup> type \<times> type" 
-  var\<^sub>v_type :: "name \<rightharpoonup> type" 
+  var\<^sub>v_type :: "name \<rightharpoonup> type list \<times> type" 
   var\<^sub>t_type :: "name \<rightharpoonup> funct"
 
 definition extend\<^sub>e\<^sub>s :: "name \<Rightarrow> type \<times> type \<Rightarrow> static_environment \<Rightarrow> static_environment" where
   "extend\<^sub>e\<^sub>s x t \<Gamma> = \<Gamma>\<lparr> var\<^sub>e_type := var\<^sub>e_type \<Gamma>(x \<mapsto> t) \<rparr>"
 
-definition extend\<^sub>v\<^sub>s :: "name \<Rightarrow> type \<Rightarrow> static_environment \<Rightarrow> static_environment" where
+definition extend\<^sub>v\<^sub>s :: "name \<Rightarrow> type list \<times> type \<Rightarrow> static_environment \<Rightarrow> static_environment" where
   "extend\<^sub>v\<^sub>s x t \<Gamma> = \<Gamma>\<lparr> var\<^sub>v_type := var\<^sub>v_type \<Gamma>(x \<mapsto> t) \<rparr>"
 
 definition combine\<^sub>s :: "static_environment \<Rightarrow> static_environment \<Rightarrow> static_environment" where
@@ -126,13 +125,14 @@ inductive_cases [elim]: "\<Gamma> \<turnstile> InjV f v : t"
 
 record dynamic_environment = 
   var\<^sub>e_bind :: "name \<rightharpoonup> expr" 
-  var\<^sub>v_bind :: "name \<rightharpoonup> val" 
+  var\<^sub>v_bind :: "name \<rightharpoonup> val list \<Rightarrow> val" 
   var\<^sub>t_bind :: "name \<rightharpoonup> funct"
 
 definition extend\<^sub>e\<^sub>d :: "name \<Rightarrow> expr \<Rightarrow> dynamic_environment \<Rightarrow> dynamic_environment" where
   "extend\<^sub>e\<^sub>d x t \<Lambda> = \<Lambda>\<lparr> var\<^sub>e_bind := var\<^sub>e_bind \<Lambda>(x \<mapsto> t) \<rparr>"
 
-definition extend\<^sub>v\<^sub>d :: "name \<Rightarrow> val \<Rightarrow> dynamic_environment \<Rightarrow> dynamic_environment" where
+definition extend\<^sub>v\<^sub>d :: "name \<Rightarrow> (val list \<Rightarrow> val) \<Rightarrow> dynamic_environment \<Rightarrow> dynamic_environment" 
+    where
   "extend\<^sub>v\<^sub>d x t \<Lambda> = \<Lambda>\<lparr> var\<^sub>v_bind := var\<^sub>v_bind \<Lambda>(x \<mapsto> t) \<rparr>"
 
 definition combine\<^sub>d :: "dynamic_environment \<Rightarrow> dynamic_environment \<Rightarrow> dynamic_environment" where
@@ -148,8 +148,8 @@ definition typecheck_environment :: "static_environment \<Rightarrow> dynamic_en
     (infix "\<tturnstile>" 60) where
   "\<Gamma> \<tturnstile> \<Lambda> = (var\<^sub>t_type \<Gamma> = var\<^sub>t_bind \<Lambda> \<and> dom (var\<^sub>e_type \<Gamma>) = dom (var\<^sub>e_bind \<Lambda>) \<and> 
     dom (var\<^sub>t_type \<Gamma>) = dom (var\<^sub>t_bind \<Lambda>) \<and> 
-      (\<forall>x t\<^sub>1 t\<^sub>2. var\<^sub>e_type \<Gamma> x = Some (t\<^sub>1, t\<^sub>2) \<longrightarrow> (\<exists>e. var\<^sub>e_bind \<Lambda> x = Some e \<and> \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2)) \<and>
-        (\<forall>x t. var\<^sub>v_type \<Gamma> x = Some t \<longrightarrow> (\<exists>v. var\<^sub>v_bind \<Lambda> x = Some v \<and> \<Gamma> \<turnstile> v : t)))"
+      (\<forall>x t\<^sub>1 t\<^sub>2. var\<^sub>e_type \<Gamma> x = Some (t\<^sub>1, t\<^sub>2) \<longrightarrow> (\<exists>e. var\<^sub>e_bind \<Lambda> x = Some e \<and> \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2)))" 
+        (* \<and> (\<forall>x t. var\<^sub>v_type \<Gamma> x = Some t \<longrightarrow> (\<exists>v. var\<^sub>v_bind \<Lambda> x = Some v \<and> \<Gamma> \<turnstile> v : t)))" *)
 
 fun apply_functor_expr :: "expr \<Rightarrow> funct \<Rightarrow> expr" (infixl "\<bullet>" 75) where
   "e \<bullet> Id = e"
@@ -532,6 +532,8 @@ lemma [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Lon
   and [simp]: "\<Gamma> \<turnstile> v : t \<Longrightarrow> x \<notin> dom (var\<^sub>v_type \<Gamma>) \<Longrightarrow> \<Gamma>\<lparr>var\<^sub>v_type := var\<^sub>v_type \<Gamma>(x \<mapsto> tt)\<rparr> \<turnstile> v : t"
   by (induction \<Gamma> e t\<^sub>1 t\<^sub>2 and \<Gamma> v t rule: typecheck\<^sub>e_typecheck\<^sub>v.inducts) simp_all
 
+(*
+
 lemma [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> domain\<^sub>s \<Gamma> \<inter> domain\<^sub>s \<Gamma>' = {} \<Longrightarrow> combine\<^sub>s \<Gamma> \<Gamma>' \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
   and [simp]: "\<Gamma> \<turnstile> v : t \<Longrightarrow> domain\<^sub>s \<Gamma> \<inter> domain\<^sub>s \<Gamma>' = {} \<Longrightarrow> combine\<^sub>s \<Gamma> \<Gamma>' \<turnstile> v : t"
   by (induction \<Gamma> e t\<^sub>1 t\<^sub>2 and \<Gamma> v t rule: typecheck\<^sub>e_typecheck\<^sub>v.inducts) simp_all
@@ -582,7 +584,7 @@ lemma [simp]: "\<And>xa ta. \<Gamma> \<turnstile> v : t \<Longrightarrow>
              \<forall>x t. var\<^sub>v_type \<Gamma> x = Some t \<longrightarrow> (\<exists>v. var\<^sub>v_bind \<Lambda> x = Some v \<and> \<Gamma> \<turnstile> v : t) \<Longrightarrow>
              var\<^sub>t_bind \<Lambda> x = None \<Longrightarrow>
              xa \<noteq> x \<Longrightarrow> var\<^sub>v_type \<Gamma> xa = Some ta \<Longrightarrow> \<exists>v. var\<^sub>v_bind \<Lambda> xa = Some v \<and> \<Gamma>\<lparr>var\<^sub>v_type := var\<^sub>v_type \<Gamma>(x \<mapsto> t)\<rparr> \<turnstile> v : ta"
-  by simp
+  by simp *)
 
 lemma [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<tturnstile> \<Lambda> \<Longrightarrow> x \<notin> domain\<^sub>s \<Gamma> \<Longrightarrow> 
     extend\<^sub>e\<^sub>s x (t\<^sub>1, t\<^sub>2) \<Gamma> \<tturnstile> extend\<^sub>e\<^sub>d x e \<Lambda>"
