@@ -45,7 +45,7 @@ primrec binders\<^sub>d :: "decl \<Rightarrow> name set" where
 | "binders\<^sub>d (ExprDecl x e) = {x}"
 
 fun binders :: "decl list \<Rightarrow> name set" where
-  "binders \<Lambda> = \<Union> (binders\<^sub>d ` set \<Lambda>)"
+  "binders \<Delta> = \<Union> (binders\<^sub>d ` set \<Delta>)"
 
 datatype prog = Prog "decl list" expr val
 

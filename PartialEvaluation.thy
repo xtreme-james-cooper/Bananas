@@ -50,8 +50,13 @@ fun partial_evaluation :: "dynamic_environment \<Rightarrow> nat \<Rightarrow> e
       Some e \<Rightarrow> partial_evaluation \<Lambda> n e v 
     | None \<Rightarrow> None )"
 
+primrec algorithmic_assemble_context :: "decl list \<Rightarrow> dynamic_environment" where
+  "algorithmic_assemble_context [] = empty_dynamic"
+| "algorithmic_assemble_context (\<delta> # \<Lambda>) = 
+    combine\<^sub>d (assemble_context' something \<delta>) (assemble_context \<Lambda>)"
+
 primrec partial_eval_prog :: "nat \<Rightarrow> prog \<Rightarrow> val option" where
-  "partial_eval_prog n (Prog \<Lambda> e v) = partial_evaluation (assemble_context \<Lambda>) n e v"
+  "partial_eval_prog n (Prog \<Lambda> e v) = partial_evaluation (algorithmic_assemble_context \<Lambda>) n e v"
 
 (* correctness *)
 

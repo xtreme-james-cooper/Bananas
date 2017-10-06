@@ -99,16 +99,41 @@ primrec assemble_context' :: "static_environment \<Rightarrow> decl \<Rightarrow
 | "assemble_context' \<Gamma> (ValDecl x v) = empty_dynamic \<lparr> var\<^sub>v_bind := [x \<mapsto> \<lambda>x. v] \<rparr>"
 | "assemble_context' \<Gamma> (ExprDecl x e) = empty_dynamic \<lparr> var\<^sub>e_bind := [x \<mapsto> e] \<rparr>"
 
-primrec assemble_context :: "decl list \<Rightarrow> dynamic_environment" where
-  "assemble_context [] = empty_dynamic"
-| "assemble_context (\<delta> # \<Lambda>) = combine\<^sub>d (assemble_context' empty_static \<delta>) (assemble_context \<Lambda>)"
+inductive assemble_context :: "static_environment \<Rightarrow> decl list \<Rightarrow> dynamic_environment \<Rightarrow> bool" where
+  [simp]: "assemble_context \<Gamma> [] empty_dynamic"
+| [simp]: "\<Gamma> \<Turnstile> \<delta> : \<Gamma>' \<Longrightarrow> assemble_context \<Gamma>' \<Delta> \<Lambda> \<Longrightarrow> 
+    assemble_context \<Gamma> (\<delta> # \<Delta>) (combine\<^sub>d (assemble_context' \<Gamma> \<delta>) \<Lambda>)"
+
+inductive_cases [elim]: "assemble_context \<Gamma> [] \<Lambda>"
+inductive_cases [elim]: "assemble_context \<Gamma> (\<delta> # \<Delta>) \<Lambda>"
 
 primrec is_completed :: "prog \<Rightarrow> bool" where
-  "is_completed (Prog \<Lambda> e v) = (e = \<epsilon>)"
+  "is_completed (Prog \<Delta> e v) = (e = \<epsilon>)"
 
 inductive evaluate_prog :: "prog \<Rightarrow> prog \<Rightarrow> bool" (infix "\<leadsto>" 60) where
-  ev_prog [simp]: "assemble_context \<Lambda> \<turnstile> e \<cdot> v \<leadsto> e' \<cdot> v' \<Longrightarrow> Prog \<Lambda> e v \<leadsto> Prog \<Lambda> e' v'"
+  ev_prog [simp]: "assemble_context empty_static \<Delta> \<Lambda> \<Longrightarrow> \<Lambda> \<turnstile> e \<cdot> v \<leadsto> e' \<cdot> v' \<Longrightarrow> 
+    Prog \<Delta> e v \<leadsto> Prog \<Delta> e' v'"
 
-inductive_cases [elim]: "Prog \<Lambda> e v \<leadsto> \<Pi>"
+inductive_cases [elim]: "Prog \<Delta> e v \<leadsto> \<Pi>"
+
+(* useful properties *)
+
+lemma [simp]: "var\<^sub>e_bind (extend\<^sub>e\<^sub>d x e \<Lambda>) = (var\<^sub>e_bind \<Lambda>)(x \<mapsto> e)"
+  by (simp add: extend\<^sub>e\<^sub>d_def)
+
+lemma [simp]: "var\<^sub>v_bind (extend\<^sub>e\<^sub>d x e \<Lambda>) = var\<^sub>v_bind \<Lambda>"
+  by (simp add: extend\<^sub>e\<^sub>d_def)
+
+lemma [simp]: "var\<^sub>t_bind (extend\<^sub>e\<^sub>d x e \<Lambda>) = var\<^sub>t_bind \<Lambda>"
+  by (simp add: extend\<^sub>e\<^sub>d_def)
+
+lemma [simp]: "var\<^sub>v_bind (extend\<^sub>v\<^sub>d x v \<Lambda>) = (var\<^sub>v_bind \<Lambda>)(x \<mapsto> v)"
+  by (simp add: extend\<^sub>v\<^sub>d_def)
+
+lemma [simp]: "var\<^sub>e_bind (extend\<^sub>v\<^sub>d x v \<Lambda>) = var\<^sub>e_bind \<Lambda>"
+  by (simp add: extend\<^sub>v\<^sub>d_def)
+
+lemma [simp]: "var\<^sub>t_bind (extend\<^sub>v\<^sub>d x v \<Lambda>) = var\<^sub>t_bind \<Lambda>"
+  by (simp add: extend\<^sub>v\<^sub>d_def)
 
 end
