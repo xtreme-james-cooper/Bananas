@@ -1,193 +1,6 @@
-theory BananasExpression
-imports Main
+theory BananasSafety
+imports BananasDynamics
 begin
-
-type_synonym name = string
-
-datatype type = 
-  Void ("\<zero>")
-| Unit ("\<one>")
-| Poly nat
-| Prod type type (infixr "\<otimes>" 85)
-| Sum type type (infixr "\<oplus>" 80)
-| Func type type (infixr "\<hookrightarrow>" 70)
-| Fix funct ("\<mu>")
-and funct =
-  Id
-| K type
-| ProdF funct funct (infixr "\<Otimes>" 85)
-| SumF funct funct (infixr "\<Oplus>" 80)
-
-datatype expr = 
-  Identity ("\<epsilon>") | Const val ("\<kappa>") | Comp expr expr (infixr "\<cdot>" 65)
-| Proj1 ("\<pi>\<^sub>1") | Proj2 ("\<pi>\<^sub>2") | Duplicate ("\<Theta>") | Pairwise expr expr (infixr "\<parallel>" 85)
-| Injl ("\<iota>\<^sub>l") | Injr ("\<iota>\<^sub>r") | Strip ("\<Xi>") |  Case expr expr (infixr "\<bar>" 80)
-| Distribute ("\<rhd>")
-| Apply ("$") | Arrow expr expr (infixl "\<leftarrow>" 70)
-| Inj name ("\<succ>\<^bsub>_\<^esub>") | Outj name ("\<prec>\<^bsub>_\<^esub>")
-| Cata expr name ("\<lparr> _ \<rparr>\<^bsub>_\<^esub>") | Ana expr name ("\<lbrakk> _ \<rbrakk>\<^bsub>_\<^esub>")
-| Var name
-and val = 
-  UnitV
-| PairV val val 
-| InlV val | InrV val
-| FunV expr
-| InjV name val 
-
-(* typechecking *)
-
-record static_environment = 
-  var\<^sub>e_type :: "name \<rightharpoonup> type \<times> type" 
-  var\<^sub>v_type :: "name \<rightharpoonup> type list \<times> type" 
-  var\<^sub>t_type :: "name \<rightharpoonup> funct"
-
-definition extend\<^sub>e\<^sub>s :: "name \<Rightarrow> type \<times> type \<Rightarrow> static_environment \<Rightarrow> static_environment" where
-  "extend\<^sub>e\<^sub>s x t \<Gamma> = \<Gamma>\<lparr> var\<^sub>e_type := var\<^sub>e_type \<Gamma>(x \<mapsto> t) \<rparr>"
-
-definition extend\<^sub>v\<^sub>s :: "name \<Rightarrow> type list \<times> type \<Rightarrow> static_environment \<Rightarrow> static_environment" where
-  "extend\<^sub>v\<^sub>s x t \<Gamma> = \<Gamma>\<lparr> var\<^sub>v_type := var\<^sub>v_type \<Gamma>(x \<mapsto> t) \<rparr>"
-
-definition combine\<^sub>s :: "static_environment \<Rightarrow> static_environment \<Rightarrow> static_environment" where
-  "combine\<^sub>s \<Gamma> \<Gamma>' = \<lparr> 
-      var\<^sub>e_type = var\<^sub>e_type \<Gamma> ++ var\<^sub>e_type \<Gamma>', 
-      var\<^sub>v_type = var\<^sub>v_type \<Gamma> ++ var\<^sub>v_type \<Gamma>', 
-      var\<^sub>t_type = var\<^sub>t_type \<Gamma> ++ var\<^sub>t_type \<Gamma>' \<rparr>"
-
-definition domain\<^sub>s :: "static_environment \<Rightarrow> name set" where
-  "domain\<^sub>s \<Gamma> = dom (var\<^sub>e_type \<Gamma>) \<union> dom (var\<^sub>v_type \<Gamma>) \<union> dom (var\<^sub>t_type \<Gamma>)"
-
-fun apply_functor_type :: "type \<Rightarrow> funct \<Rightarrow> type" (infixl "\<star>" 75) where
-  "t \<star> Id = t"
-| "t \<star> K t' = t'"
-| "t \<star> f\<^sub>1 \<Otimes> f\<^sub>2 = (t \<star> f\<^sub>1) \<otimes> (t \<star> f\<^sub>2)"
-| "t \<star> f\<^sub>1 \<Oplus> f\<^sub>2 = (t \<star> f\<^sub>1) \<oplus> (t \<star> f\<^sub>2)"
-
-inductive typecheck\<^sub>e :: "static_environment \<Rightarrow> expr \<Rightarrow> type \<Rightarrow> type \<Rightarrow> bool" (infix "\<turnstile> _ : _ \<rightarrow>" 60)
-      and typecheck\<^sub>v :: "static_environment \<Rightarrow> val \<Rightarrow> type \<Rightarrow> bool" (infix "\<turnstile> _ :" 60) where
-  tc_id [simp]: "\<Gamma> \<turnstile> \<epsilon> : t \<rightarrow> t"
-| tc_con [simp]: "\<Gamma> \<turnstile> v : t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> \<kappa> v : t\<^sub>1 \<rightarrow> t\<^sub>2"
-| tc_comp [simp]: "\<Gamma> \<turnstile> f : t\<^sub>2 \<rightarrow> t\<^sub>3 \<Longrightarrow> \<Gamma> \<turnstile> g : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> f \<cdot> g : t\<^sub>1 \<rightarrow> t\<^sub>3"
-| tc_fst [simp]: "\<Gamma> \<turnstile> \<pi>\<^sub>1 : t\<^sub>1 \<otimes> t\<^sub>2 \<rightarrow> t\<^sub>1"
-| tc_snd [simp]: "\<Gamma> \<turnstile> \<pi>\<^sub>2 : t\<^sub>1 \<otimes> t\<^sub>2 \<rightarrow> t\<^sub>2"
-| tc_tup [simp]: "\<Gamma> \<turnstile> \<Theta> : t \<rightarrow> t \<otimes> t"
-| tc_pair [simp]: "\<Gamma> \<turnstile> f\<^sub>1 : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> f\<^sub>2 : t\<^sub>3 \<rightarrow> t\<^sub>4 \<Longrightarrow> 
-    \<Gamma> \<turnstile> f\<^sub>1 \<parallel> f\<^sub>2 : t\<^sub>1 \<otimes> t\<^sub>3 \<rightarrow> t\<^sub>2 \<otimes> t\<^sub>4"
-| tc_inl [simp]: "\<Gamma> \<turnstile> \<iota>\<^sub>l : t\<^sub>1 \<rightarrow> t\<^sub>1 \<oplus> t\<^sub>2"
-| tc_inr [simp]: "\<Gamma> \<turnstile> \<iota>\<^sub>r : t\<^sub>2 \<rightarrow> t\<^sub>1 \<oplus> t\<^sub>2"
-| tc_str [simp]: "\<Gamma> \<turnstile> \<Xi> : t\<^sub>1 \<oplus> t\<^sub>1 \<rightarrow> t\<^sub>1"
-| tc_case [simp]: "\<Gamma> \<turnstile> f\<^sub>l : t\<^sub>1 \<rightarrow> t\<^sub>3 \<Longrightarrow> \<Gamma> \<turnstile> f\<^sub>r : t\<^sub>2 \<rightarrow> t\<^sub>4 \<Longrightarrow> 
-    \<Gamma> \<turnstile> f\<^sub>l \<bar> f\<^sub>r : t\<^sub>1 \<oplus> t\<^sub>2 \<rightarrow> t\<^sub>3 \<oplus> t\<^sub>4"
-| tc_dst [simp]: "\<Gamma> \<turnstile> \<rhd> : (t\<^sub>1 \<oplus> t\<^sub>2) \<otimes> t\<^sub>3 \<rightarrow> t\<^sub>1 \<otimes> t\<^sub>3 \<oplus> t\<^sub>2 \<otimes> t\<^sub>3"
-| tc_app [simp]: "\<Gamma> \<turnstile> $ : (t\<^sub>1 \<hookrightarrow> t\<^sub>2) \<otimes> t\<^sub>1 \<rightarrow> t\<^sub>2"
-| tc_arr [simp]: "\<Gamma> \<turnstile> f : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> g : t\<^sub>3 \<rightarrow> t\<^sub>4 \<Longrightarrow> 
-    \<Gamma> \<turnstile> g \<leftarrow> f : t\<^sub>2 \<hookrightarrow> t\<^sub>3 \<rightarrow> t\<^sub>1 \<hookrightarrow> t\<^sub>4"
-| tc_inj [simp]: "var\<^sub>t_type \<Gamma> n = Some F \<Longrightarrow> \<Gamma> \<turnstile> \<succ>\<^bsub>n\<^esub> : \<mu> F \<star> F \<rightarrow> \<mu> F"
-| tc_outj [simp]: "var\<^sub>t_type \<Gamma> n = Some F \<Longrightarrow> \<Gamma> \<turnstile> \<prec>\<^bsub>n\<^esub> : \<mu> F \<rightarrow> \<mu> F \<star> F"
-| tc_cata [simp]: "var\<^sub>t_type \<Gamma> n = Some F \<Longrightarrow> \<Gamma> \<turnstile> f : t \<star> F \<rightarrow> t \<Longrightarrow> \<Gamma> \<turnstile> \<lparr> f \<rparr>\<^bsub>n\<^esub> : \<mu> F \<rightarrow> t"
-| tc_ana [simp]: "var\<^sub>t_type \<Gamma> n = Some F \<Longrightarrow> \<Gamma> \<turnstile> f : t \<rightarrow> t \<star> F \<Longrightarrow> \<Gamma> \<turnstile> \<lbrakk> f \<rbrakk>\<^bsub>n\<^esub> : t \<rightarrow> \<mu> F"
-| tc_var [simp]: "var\<^sub>e_type \<Gamma> x = Some (t\<^sub>1, t\<^sub>2) \<Longrightarrow> \<Gamma> \<turnstile> Var x : t\<^sub>1 \<rightarrow> t\<^sub>2"
-
-| tcv_unit [simp]: "\<Gamma> \<turnstile> UnitV : \<one>"
-| tcv_pair [simp]: "\<Gamma> \<turnstile> v\<^sub>1 : t\<^sub>1 \<Longrightarrow> \<Gamma> \<turnstile> v\<^sub>2 : t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> PairV v\<^sub>1 v\<^sub>2 : t\<^sub>1 \<otimes> t\<^sub>2"
-| tcv_inl [simp]: "\<Gamma> \<turnstile> v : t\<^sub>1 \<Longrightarrow> \<Gamma> \<turnstile> InlV v : t\<^sub>1 \<oplus> t\<^sub>2"
-| tcv_inr [simp]: "\<Gamma> \<turnstile> v : t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> InrV v : t\<^sub>1 \<oplus> t\<^sub>2"
-| tcv_fun [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> FunV e : t\<^sub>1 \<hookrightarrow> t\<^sub>2"
-| tcv_inj [simp]: "var\<^sub>t_type \<Gamma> n = Some F \<Longrightarrow> \<Gamma> \<turnstile> v : \<mu> F \<star> F \<Longrightarrow> \<Gamma> \<turnstile> InjV n v : \<mu> F"
-
-inductive_cases [elim]: "\<Gamma> \<turnstile> \<epsilon> : t \<rightarrow> t'"
-inductive_cases [elim]: "\<Gamma> \<turnstile> \<kappa> v : t \<rightarrow> t'"
-inductive_cases [elim]: "\<Gamma> \<turnstile> f \<cdot> g : t \<rightarrow> t'"
-inductive_cases [elim]: "\<Gamma> \<turnstile> \<pi>\<^sub>1 : t \<rightarrow> t'"
-inductive_cases [elim]: "\<Gamma> \<turnstile> \<pi>\<^sub>2 : t \<rightarrow> t'"
-inductive_cases [elim]: "\<Gamma> \<turnstile> \<Theta> : t \<rightarrow> t'"
-inductive_cases [elim]: "\<Gamma> \<turnstile> f\<^sub>l \<parallel> f\<^sub>r : t \<rightarrow> t'"
-inductive_cases [elim]: "\<Gamma> \<turnstile> \<iota>\<^sub>l : t \<rightarrow> t'"
-inductive_cases [elim]: "\<Gamma> \<turnstile> \<iota>\<^sub>r : t \<rightarrow> t'"
-inductive_cases [elim]: "\<Gamma> \<turnstile> \<Xi> : t \<rightarrow> t'"
-inductive_cases [elim]: "\<Gamma> \<turnstile> f\<^sub>l \<bar> f\<^sub>r : t \<rightarrow> t'"
-inductive_cases [elim]: "\<Gamma> \<turnstile> \<rhd> : t \<rightarrow> t'"
-inductive_cases [elim]: "\<Gamma> \<turnstile> $ : t \<rightarrow> t'"
-inductive_cases [elim]: "\<Gamma> \<turnstile> g \<leftarrow> f : t \<rightarrow> t'"
-inductive_cases [elim]: "\<Gamma> \<turnstile> \<prec>\<^bsub>n\<^esub> : t \<rightarrow> t'"
-inductive_cases [elim]: "\<Gamma> \<turnstile> \<succ>\<^bsub>n\<^esub> : t \<rightarrow> t'"
-inductive_cases [elim]: "\<Gamma> \<turnstile> \<lparr> f \<rparr>\<^bsub>n\<^esub> : t \<rightarrow> t'"
-inductive_cases [elim]: "\<Gamma> \<turnstile> \<lbrakk> f \<rbrakk>\<^bsub>n\<^esub> : t \<rightarrow> t'"
-inductive_cases [elim]: "\<Gamma> \<turnstile> Var x : t \<rightarrow> t'"
-
-inductive_cases [elim]: "\<Gamma> \<turnstile> UnitV : t"
-inductive_cases [elim]: "\<Gamma> \<turnstile> PairV v\<^sub>1 v\<^sub>2 : t"
-inductive_cases [elim]: "\<Gamma> \<turnstile> InrV v : t"
-inductive_cases [elim]: "\<Gamma> \<turnstile> InlV v : t"
-inductive_cases [elim]: "\<Gamma> \<turnstile> FunV e : t"
-inductive_cases [elim]: "\<Gamma> \<turnstile> InjV f v : t"
-
-(* evaluation *)
-
-record dynamic_environment = 
-  var\<^sub>e_bind :: "name \<rightharpoonup> expr" 
-  var\<^sub>v_bind :: "name \<rightharpoonup> val list \<Rightarrow> val" 
-  var\<^sub>t_bind :: "name \<rightharpoonup> funct"
-
-definition extend\<^sub>e\<^sub>d :: "name \<Rightarrow> expr \<Rightarrow> dynamic_environment \<Rightarrow> dynamic_environment" where
-  "extend\<^sub>e\<^sub>d x t \<Lambda> = \<Lambda>\<lparr> var\<^sub>e_bind := var\<^sub>e_bind \<Lambda>(x \<mapsto> t) \<rparr>"
-
-definition extend\<^sub>v\<^sub>d :: "name \<Rightarrow> (val list \<Rightarrow> val) \<Rightarrow> dynamic_environment \<Rightarrow> dynamic_environment" 
-    where
-  "extend\<^sub>v\<^sub>d x t \<Lambda> = \<Lambda>\<lparr> var\<^sub>v_bind := var\<^sub>v_bind \<Lambda>(x \<mapsto> t) \<rparr>"
-
-definition combine\<^sub>d :: "dynamic_environment \<Rightarrow> dynamic_environment \<Rightarrow> dynamic_environment" where
-  "combine\<^sub>d \<Lambda> \<Lambda>' = \<lparr> 
-      var\<^sub>e_bind = var\<^sub>e_bind \<Lambda> ++ var\<^sub>e_bind \<Lambda>', 
-      var\<^sub>v_bind = var\<^sub>v_bind \<Lambda> ++ var\<^sub>v_bind \<Lambda>', 
-      var\<^sub>t_bind = var\<^sub>t_bind \<Lambda> ++ var\<^sub>t_bind \<Lambda>' \<rparr>"
-
-definition domain\<^sub>d :: "dynamic_environment \<Rightarrow> name set" where
-  "domain\<^sub>d \<Lambda> = dom (var\<^sub>e_bind \<Lambda>) \<union> dom (var\<^sub>v_bind \<Lambda>) \<union> dom (var\<^sub>t_bind \<Lambda>)"
-
-definition typecheck_environment :: "static_environment \<Rightarrow> dynamic_environment \<Rightarrow> bool" 
-    (infix "\<tturnstile>" 60) where
-  "\<Gamma> \<tturnstile> \<Lambda> = (var\<^sub>t_type \<Gamma> = var\<^sub>t_bind \<Lambda> \<and> dom (var\<^sub>e_type \<Gamma>) = dom (var\<^sub>e_bind \<Lambda>) \<and> 
-    dom (var\<^sub>t_type \<Gamma>) = dom (var\<^sub>t_bind \<Lambda>) \<and> 
-      (\<forall>x t\<^sub>1 t\<^sub>2. var\<^sub>e_type \<Gamma> x = Some (t\<^sub>1, t\<^sub>2) \<longrightarrow> (\<exists>e. var\<^sub>e_bind \<Lambda> x = Some e \<and> \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2)))" 
-        (* \<and> (\<forall>x t. var\<^sub>v_type \<Gamma> x = Some t \<longrightarrow> (\<exists>v. var\<^sub>v_bind \<Lambda> x = Some v \<and> \<Gamma> \<turnstile> v : t)))" *)
-
-fun apply_functor_expr :: "expr \<Rightarrow> funct \<Rightarrow> expr" (infixl "\<bullet>" 75) where
-  "e \<bullet> Id = e"
-| "e \<bullet> K t = \<epsilon>"
-| "e \<bullet> f\<^sub>1 \<Otimes> f\<^sub>2 = (e \<bullet> f\<^sub>1) \<parallel> (e \<bullet> f\<^sub>2)"
-| "e \<bullet> f\<^sub>1 \<Oplus> f\<^sub>2 = (e \<bullet> f\<^sub>1) \<bar> (e \<bullet> f\<^sub>2)"
-
-inductive evaluate :: "dynamic_environment \<Rightarrow> expr \<Rightarrow> val \<Rightarrow> expr \<Rightarrow> val \<Rightarrow> bool" 
-    (infix "\<turnstile> _ \<cdot> _ \<leadsto> _ \<cdot>" 60) where
-  ev_con [simp]: "\<Lambda> \<turnstile> \<kappa> v\<^sub>1 \<cdot> v\<^sub>2 \<leadsto> \<epsilon> \<cdot> v\<^sub>1"
-| ev_comp1 [simp]: "\<Lambda> \<turnstile> g \<cdot> v \<leadsto> g' \<cdot> v' \<Longrightarrow> \<Lambda> \<turnstile> (f \<cdot> g) \<cdot> v \<leadsto> (f \<cdot> g') \<cdot> v'"
-| ev_comp2 [simp]: "\<Lambda> \<turnstile> (f \<cdot> \<epsilon>) \<cdot> v \<leadsto> f \<cdot> v"
-| ev_fst [simp]: "\<Lambda> \<turnstile> \<pi>\<^sub>1 \<cdot> PairV v\<^sub>1 v\<^sub>2 \<leadsto> \<epsilon> \<cdot> v\<^sub>1"
-| ev_snd [simp]: "\<Lambda> \<turnstile> \<pi>\<^sub>2 \<cdot> PairV v\<^sub>1 v\<^sub>2 \<leadsto> \<epsilon> \<cdot> v\<^sub>2"
-| ev_pair1 [simp]: "\<Lambda> \<turnstile> f\<^sub>1 \<cdot> v\<^sub>1 \<leadsto> f\<^sub>1' \<cdot> v\<^sub>1' \<Longrightarrow> 
-    \<Lambda> \<turnstile> f\<^sub>1 \<parallel> f\<^sub>2 \<cdot> PairV v\<^sub>1 v\<^sub>2 \<leadsto> f\<^sub>1' \<parallel> f\<^sub>2 \<cdot> PairV v\<^sub>1' v\<^sub>2"
-| ev_pair2 [simp]: "\<Lambda> \<turnstile> f\<^sub>2 \<cdot> v\<^sub>2 \<leadsto> f\<^sub>2' \<cdot> v\<^sub>2' \<Longrightarrow> 
-    \<Lambda> \<turnstile> \<epsilon> \<parallel> f\<^sub>2 \<cdot> PairV v\<^sub>1 v\<^sub>2 \<leadsto> \<epsilon> \<parallel> f\<^sub>2' \<cdot> PairV v\<^sub>1 v\<^sub>2'"
-| ev_pair3 [simp]: "\<Lambda> \<turnstile> \<epsilon> \<parallel> \<epsilon> \<cdot> PairV v\<^sub>1 v\<^sub>2 \<leadsto> \<epsilon> \<cdot> PairV v\<^sub>1 v\<^sub>2"
-| ev_tup [simp]: "\<Lambda> \<turnstile> \<Theta> \<cdot> v \<leadsto> \<epsilon> \<cdot> PairV v v"
-| ev_inl [simp]: "\<Lambda> \<turnstile> \<iota>\<^sub>l \<cdot> v \<leadsto> \<epsilon> \<cdot> InlV v"
-| ev_inr [simp]: "\<Lambda> \<turnstile> \<iota>\<^sub>r \<cdot> v \<leadsto> \<epsilon> \<cdot> InrV v"
-| ev_strl [simp]: "\<Lambda> \<turnstile> \<Xi> \<cdot> InlV v \<leadsto> \<epsilon> \<cdot> v"
-| ev_strr [simp]: "\<Lambda> \<turnstile> \<Xi> \<cdot> InrV v \<leadsto> \<epsilon> \<cdot> v"
-| ev_csl [simp]: "\<Lambda> \<turnstile> f\<^sub>l \<bar> f\<^sub>r \<cdot> InlV v \<leadsto> (\<iota>\<^sub>l \<cdot> f\<^sub>l) \<cdot> v"
-| ev_csr [simp]: "\<Lambda> \<turnstile> f\<^sub>l \<bar> f\<^sub>r \<cdot> InrV v \<leadsto> (\<iota>\<^sub>r \<cdot> f\<^sub>r) \<cdot> v"
-| ev_dstl [simp]: "\<Lambda> \<turnstile> \<rhd> \<cdot> PairV (InlV v\<^sub>1) v\<^sub>2 \<leadsto> \<epsilon> \<cdot> InlV (PairV v\<^sub>1 v\<^sub>2)"
-| ev_dstr [simp]: "\<Lambda> \<turnstile> \<rhd> \<cdot> PairV (InrV v\<^sub>1) v\<^sub>2 \<leadsto> \<epsilon> \<cdot> InrV (PairV v\<^sub>1 v\<^sub>2)"
-| ev_app [simp]: "\<Lambda> \<turnstile> $ \<cdot> PairV (FunV e) v \<leadsto> e \<cdot> v"
-| ev_arr [simp]: "\<Lambda> \<turnstile> g \<leftarrow> f \<cdot> FunV e \<leadsto> \<epsilon> \<cdot> FunV (g \<cdot> e \<cdot> f)"
-| ev_inj [simp]: "\<Lambda> \<turnstile> \<succ>\<^bsub>n\<^esub> \<cdot> v \<leadsto> \<epsilon> \<cdot> InjV n v"
-(* Should have n = m, but makes progress harder. Also, typechecking guarantees it.  *)
-| ev_outj [simp]: "\<Lambda> \<turnstile> \<prec>\<^bsub>n\<^esub> \<cdot> InjV m v \<leadsto> \<epsilon> \<cdot> v" 
-| ev_cata [simp]: "var\<^sub>t_bind \<Lambda> n = Some F \<Longrightarrow> \<Lambda> \<turnstile> \<lparr> f \<rparr>\<^bsub>n\<^esub> \<cdot> v \<leadsto> (f \<cdot> \<lparr> f \<rparr>\<^bsub>n\<^esub> \<bullet> F \<cdot> \<prec>\<^bsub>n\<^esub>) \<cdot> v"
-| ev_ana [simp]: "var\<^sub>t_bind \<Lambda> n = Some F \<Longrightarrow> \<Lambda> \<turnstile> \<lbrakk> f \<rbrakk>\<^bsub>n\<^esub> \<cdot> v \<leadsto> (\<succ>\<^bsub>n\<^esub> \<cdot> \<lbrakk> f \<rbrakk>\<^bsub>n\<^esub> \<bullet> F \<cdot> f) \<cdot> v"
-| ev_var [simp]: "var\<^sub>e_bind \<Lambda> x = Some e \<Longrightarrow> \<Lambda> \<turnstile> Var x \<cdot> v \<leadsto> e \<cdot> v"
-
-(* safety *)
 
 lemma canonical_unit: "\<Gamma> \<turnstile> v : \<one> \<Longrightarrow> v = UnitV"
   by (cases \<Gamma> v \<one> rule: typecheck\<^sub>v.cases) simp_all
@@ -596,5 +409,219 @@ lemma [simp]: "\<Gamma> \<turnstile> v : t \<Longrightarrow> \<Gamma> \<tturnsti
 lemma typecheck_combine [simp]: "\<Gamma> \<tturnstile> \<Lambda> \<Longrightarrow> \<Gamma>' \<tturnstile> \<Lambda>' \<Longrightarrow> domain\<^sub>s \<Gamma> \<inter> domain\<^sub>s \<Gamma>' = {} \<Longrightarrow> 
     combine\<^sub>s \<Gamma> \<Gamma>' \<tturnstile> combine\<^sub>d \<Lambda> \<Lambda>'"
   by (auto simp add: typecheck_environment_def combine\<^sub>s_def combine\<^sub>d_def domain\<^sub>s_def)
+
+lemma [simp]: "combine\<^sub>d empty_dynamic \<Lambda> = \<Lambda>"
+  by (simp add: combine\<^sub>d_def empty_dynamic_def)
+
+lemma [simp]: "combine\<^sub>d \<Lambda> empty_dynamic = \<Lambda>"
+  by (simp add: combine\<^sub>d_def empty_dynamic_def)
+
+lemma [simp]: "combine\<^sub>d (combine\<^sub>d \<Lambda>\<^sub>1 \<Lambda>\<^sub>2) \<Lambda>\<^sub>3 = combine\<^sub>d \<Lambda>\<^sub>1 (combine\<^sub>d \<Lambda>\<^sub>2 \<Lambda>\<^sub>3)"
+  by (simp add: combine\<^sub>d_def empty_dynamic_def)
+
+lemma [simp]: "combine\<^sub>d \<Lambda> (empty_dynamic\<lparr>var\<^sub>e_bind := [x \<mapsto> e]\<rparr>) = extend\<^sub>e\<^sub>d x e \<Lambda>"
+  by (simp add: combine\<^sub>d_def empty_dynamic_def extend\<^sub>e\<^sub>d_def)
+
+lemma [simp]: "combine\<^sub>d \<Lambda> (empty_dynamic\<lparr>var\<^sub>v_bind := [x \<mapsto> v]\<rparr>) = extend\<^sub>v\<^sub>d x v \<Lambda>"
+  by (simp add: combine\<^sub>d_def empty_dynamic_def extend\<^sub>v\<^sub>d_def)
+
+lemma [simp]: "typecheck\<^sub>c\<^sub>e \<Gamma> F cts x = Some (t\<^sub>1, t\<^sub>2) \<Longrightarrow> \<exists>e. assemble_context\<^sub>c\<^sub>e n d cts x = Some e"
+  by (induction F cts x arbitrary: d rule: typecheck\<^sub>c\<^sub>e.induct) auto
+
+lemma [simp]: "assemble_context\<^sub>c\<^sub>e n d cts x = Some e \<Longrightarrow> \<exists>t\<^sub>1 t\<^sub>2. typecheck\<^sub>c\<^sub>e \<Gamma> F cts x = Some (t\<^sub>1, t\<^sub>2)"
+  by (induction n d cts arbitrary: e rule: assemble_context\<^sub>c\<^sub>e.induct) auto
+
+lemma [elim]: "\<Gamma> \<turnstile> right_inject (length cts') : t\<^sub>1 \<rightarrow> t\<^sub>2 \<star> typecheck\<^sub>c\<^sub>t\<^sub>s (cts' @ cts) \<Longrightarrow> 
+    \<Gamma>' \<turnstile> right_inject (length cts') : t\<^sub>1 \<rightarrow> t\<^sub>2 \<star> typecheck\<^sub>c\<^sub>t\<^sub>s (cts' @ cts)"
+  proof (induction cts')
+  case (Cons ct cts')
+    let ?F = "typecheck\<^sub>c\<^sub>t\<^sub>s (ct # cts' @ cts)"
+    let ?F' = "typecheck\<^sub>c\<^sub>t\<^sub>s (cts' @ cts)" 
+    from Cons have "(\<Gamma> \<turnstile> \<iota>\<^sub>r : t\<^sub>2 \<star> ?F' \<rightarrow> (t\<^sub>2 \<star> typecheck\<^sub>c\<^sub>t ct) \<oplus> (t\<^sub>2 \<star> ?F')) \<and> 
+      \<Gamma> \<turnstile> right_inject (length cts') : t\<^sub>1 \<rightarrow> t\<^sub>2 \<star> ?F'" using typecheck\<^sub>c\<^sub>t\<^sub>s_def by fastforce
+    with Cons have "\<Gamma>' \<turnstile> right_inject (length cts') : t\<^sub>1 \<rightarrow> t\<^sub>2 \<star> ?F'" by simp
+    moreover have "\<Gamma>' \<turnstile> \<iota>\<^sub>r : t\<^sub>2 \<star> ?F' \<rightarrow> t\<^sub>2 \<star> ?F" by (simp add: typecheck\<^sub>c\<^sub>t\<^sub>s_def)
+    ultimately show ?case by simp
+  qed fastforce+
+
+lemma assembled_no_free_vars: "assemble_context\<^sub>c\<^sub>e n (length cts') cts x = Some e \<Longrightarrow> 
+    var\<^sub>t_type \<Gamma> n = Some (typecheck\<^sub>c\<^sub>t\<^sub>s (cts' @ cts)) \<Longrightarrow> 
+      var\<^sub>t_type \<Gamma>' n = Some (typecheck\<^sub>c\<^sub>t\<^sub>s (cts' @ cts)) \<Longrightarrow> \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma>' \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2" 
+  proof (induction n "length cts'" cts arbitrary: cts' rule: assemble_context\<^sub>c\<^sub>e.induct)
+  case (2 n y t cts)
+    moreover have "Suc (length cts') = length (cts' @ [(y, t)])" by simp
+    moreover from 2 have "var\<^sub>t_type \<Gamma> n = Some (typecheck\<^sub>c\<^sub>t\<^sub>s ((cts' @ [(y, t)]) @ cts))" by simp
+    moreover from 2 have "var\<^sub>t_type \<Gamma>' n = Some (typecheck\<^sub>c\<^sub>t\<^sub>s ((cts' @ [(y, t)]) @ cts))" by simp
+    ultimately have IH: "assemble_context\<^sub>c\<^sub>e n (length (cts' @ [(y, t)])) cts x = Some e \<Longrightarrow> 
+      \<Gamma>' \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2" by blast
+    with 2 show ?case
+      proof (cases "x = y")
+      case True
+        let ?F = "typecheck\<^sub>c\<^sub>t\<^sub>s (cts' @ (y, t) # cts)"
+        from True 2 have "(\<Gamma> \<turnstile> right_inject (length cts') : t\<^sub>1 \<rightarrow> \<mu> ?F \<star> ?F) \<and> t\<^sub>2 = \<mu> ?F"
+          by fastforce
+        moreover hence "\<Gamma>' \<turnstile> right_inject (length cts') : t\<^sub>1 \<rightarrow> \<mu> ?F \<star> ?F" by fastforce
+        moreover from 2 have "\<Gamma>' \<turnstile> \<succ>\<^bsub>n\<^esub> : \<mu> ?F \<star> ?F \<rightarrow> \<mu> ?F" by simp
+        ultimately have "\<Gamma>' \<turnstile> \<succ>\<^bsub>n\<^esub> \<cdot> right_inject (length cts') : t\<^sub>1 \<rightarrow> t\<^sub>2" by simp
+        with True 2 show ?thesis by simp
+      qed simp_all
+   qed simp_all
+
+lemma [simp]: "typecheck\<^sub>c\<^sub>t\<^sub>s (cts @ (x, ts) # cts') = F \<Longrightarrow> 
+    \<Gamma> \<turnstile> right_inject (length cts) : foldr op \<otimes> ts \<one> \<rightarrow> t \<star> F"
+  proof (induction cts arbitrary: F)
+  case Nil
+    hence "F = typecheck\<^sub>c\<^sub>t (x, ts) \<Oplus> typecheck\<^sub>c\<^sub>t\<^sub>s cts'" by (simp add: typecheck\<^sub>c\<^sub>t\<^sub>s_def)
+    thus ?case by (simp add: typecheck\<^sub>c\<^sub>t\<^sub>s_def)
+  next case (Cons ct cts)
+    let ?F = "typecheck\<^sub>c\<^sub>t\<^sub>s (cts @ (x, ts) # cts')"
+    from Cons have "F = typecheck\<^sub>c\<^sub>t ct \<Oplus> ?F" by (simp add: typecheck\<^sub>c\<^sub>t\<^sub>s_def)
+    hence X: "\<Gamma> \<turnstile> \<iota>\<^sub>r : t \<star> ?F \<rightarrow> t \<star> F" by (simp add: typecheck\<^sub>c\<^sub>t\<^sub>s_def)
+    from Cons have "\<Gamma> \<turnstile> right_inject (length cts) : foldr op \<otimes> ts \<one> \<rightarrow> t \<star> ?F" by simp
+    with X show ?case by simp
+  qed
+
+lemma tc_assembled_e: "typecheck\<^sub>c\<^sub>e F cts x = Some (t\<^sub>1, t\<^sub>2) \<Longrightarrow> typecheck\<^sub>c\<^sub>t\<^sub>s (cts' @ cts) = F \<Longrightarrow>
+  \<exists>e. assemble_context\<^sub>c\<^sub>e n (length cts') cts x = Some e \<and> \<lparr>var\<^sub>e_type = typecheck\<^sub>c\<^sub>e F cts, 
+    var\<^sub>v_type = typecheck\<^sub>c\<^sub>v F cts, var\<^sub>t_type = [n \<mapsto> F]\<rparr> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
+  proof (induction F cts x arbitrary: cts' rule: typecheck\<^sub>c\<^sub>e.induct)
+  case (2 F y ts cts x)
+    let ?\<Gamma> = "\<lparr>var\<^sub>e_type = typecheck\<^sub>c\<^sub>e F ((y, ts) # cts), 
+               var\<^sub>v_type = typecheck\<^sub>c\<^sub>v F ((y, ts) # cts), 
+               var\<^sub>t_type = [n \<mapsto> F]\<rparr>"
+    show ?case
+      proof (cases "x = y")
+      case True
+        have X: "?\<Gamma> \<turnstile> \<succ>\<^bsub>n\<^esub> : \<mu> F \<star> F \<rightarrow> \<mu> F" by simp
+        from 2 have "?\<Gamma> \<turnstile> right_inject (length cts') : foldr op \<otimes> ts \<one> \<rightarrow> \<mu> F \<star> F" by simp
+        with 2 True X have "?\<Gamma> \<turnstile> \<succ>\<^bsub>n\<^esub> \<cdot> right_inject (length cts') : t\<^sub>1 \<rightarrow> t\<^sub>2" by simp
+        with True show ?thesis by fastforce
+      next case False        
+        with 2 have X: "typecheck\<^sub>c\<^sub>e F cts x = Some (t\<^sub>1, t\<^sub>2)" by simp
+        let ?\<Gamma>' = "\<lparr>var\<^sub>e_type = typecheck\<^sub>c\<^sub>e F cts, var\<^sub>v_type = typecheck\<^sub>c\<^sub>v F cts, 
+          var\<^sub>t_type = [n \<mapsto> F]\<rparr>"
+        from 2 have F: "typecheck\<^sub>c\<^sub>t\<^sub>s ((cts' @ [(y, ts)]) @ cts) = F" by simp
+        with 2 False X obtain e where "
+          assemble_context\<^sub>c\<^sub>e n (length (cts' @ [(y, ts)])) cts x = Some e \<and> ?\<Gamma>' \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2" 
+            by blast
+        moreover hence "assemble_context\<^sub>c\<^sub>e n (Suc (length cts')) cts x = Some e" by simp
+        moreover from F have "var\<^sub>t_type ?\<Gamma>' n = Some (typecheck\<^sub>c\<^sub>t\<^sub>s ((cts' @ [(y, ts)]) @ cts))" 
+          by simp
+        moreover from F have "var\<^sub>t_type ?\<Gamma> n = Some (typecheck\<^sub>c\<^sub>t\<^sub>s ((cts' @ [(y, ts)]) @ cts))" 
+          by simp
+        ultimately have "assemble_context\<^sub>c\<^sub>e n (Suc (length cts')) cts x = Some e \<and> 
+          ?\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2" by (metis assembled_no_free_vars length_append_singleton)
+        with False show ?thesis by fastforce
+      qed
+  qed simp_all
+
+lemma [simp]: "typecheck\<^sub>c\<^sub>e (typecheck\<^sub>c\<^sub>t\<^sub>s cts) cts x = Some (t\<^sub>1, t\<^sub>2) \<Longrightarrow> 
+  \<exists>e. assemble_context\<^sub>c\<^sub>e n 0 cts x = Some e \<and> \<lparr>var\<^sub>e_type = typecheck\<^sub>c\<^sub>e (typecheck\<^sub>c\<^sub>t\<^sub>s cts) cts, 
+    var\<^sub>v_type = typecheck\<^sub>c\<^sub>v (typecheck\<^sub>c\<^sub>t\<^sub>s cts) cts, var\<^sub>t_type = [n \<mapsto> typecheck\<^sub>c\<^sub>t\<^sub>s cts]\<rparr> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
+  proof -
+    assume "typecheck\<^sub>c\<^sub>e (typecheck\<^sub>c\<^sub>t\<^sub>s cts) cts x = Some (t\<^sub>1, t\<^sub>2)"
+    hence "typecheck\<^sub>c\<^sub>e (typecheck\<^sub>c\<^sub>t\<^sub>s ([] @ cts)) cts x = Some (t\<^sub>1, t\<^sub>2)" by simp
+    thus ?thesis using tc_assembled_e by fastforce
+  qed
+
+lemma [simp]: "typecheck\<^sub>c\<^sub>v (typecheck\<^sub>c\<^sub>t\<^sub>s cts) cts xa = Some t \<Longrightarrow> 
+  \<exists>v. assemble_context\<^sub>c\<^sub>v n cts xa = Some v \<and> \<lparr>var\<^sub>e_type = typecheck\<^sub>c\<^sub>e (typecheck\<^sub>c\<^sub>t\<^sub>s cts) cts, 
+    var\<^sub>v_type = typecheck\<^sub>c\<^sub>v (typecheck\<^sub>c\<^sub>t\<^sub>s cts) cts, var\<^sub>t_type = [n \<mapsto> typecheck\<^sub>c\<^sub>t\<^sub>s cts]\<rparr> \<turnstile> v : t"
+  by simp
+
+lemma tc_typedecl: "typecheck\<^sub>d x cts \<tturnstile> assemble_context' (TypeDecl x cts)"
+  by (auto simp add: typecheck_environment_def typecheck\<^sub>d_def Let_def)
+
+lemma [simp]: "dom (typecheck\<^sub>c\<^sub>e x cts) = fst ` set cts"
+  by (induction cts rule: assemble_context\<^sub>c\<^sub>e.induct) (auto, force)
+
+lemma [simp]: "dom (typecheck\<^sub>c\<^sub>v x cts) = fst ` set cts"
+  by (auto simp add: typecheck\<^sub>c\<^sub>v_def) (force split: if_splits)+
+
+lemma [simp]: "domain\<^sub>s (typecheck\<^sub>d x cts) = insert x (fst ` set cts)"
+  by (simp add: domain\<^sub>s_def typecheck\<^sub>d_def Let_def)
+
+lemma [simp]: "\<Gamma>\<^sub>1 \<Turnstile> \<delta> : \<Gamma>\<^sub>2 \<Longrightarrow> \<Gamma>\<^sub>1 \<tturnstile> \<Lambda>\<^sub>1 \<Longrightarrow> binders\<^sub>d \<delta> \<inter> domain\<^sub>s \<Gamma>\<^sub>1 = {} \<Longrightarrow> 
+    \<Gamma>\<^sub>2 \<tturnstile> combine\<^sub>d \<Lambda>\<^sub>1 (assemble_context' \<delta>)"
+  proof (induction \<Gamma>\<^sub>1 \<delta> \<Gamma>\<^sub>2 rule: typecheck_decl.induct)
+  case (tcd_type \<Gamma> x cts)
+    hence "domain\<^sub>s \<Gamma> \<inter> domain\<^sub>s (typecheck\<^sub>d x cts) = {}" by auto
+    with tcd_type show ?case by (metis typecheck_combine tc_typedecl)
+  qed simp_all
+
+lemma tc_defs_parts [simp]: "\<Gamma>\<^sub>1 \<Turnstile> \<Lambda>\<^sub>2 :: \<Gamma>\<^sub>2 \<Longrightarrow> \<Gamma>\<^sub>1 \<tturnstile> \<Lambda>\<^sub>1 \<Longrightarrow> \<Gamma>\<^sub>2 \<tturnstile> combine\<^sub>d \<Lambda>\<^sub>1 (assemble_context \<Lambda>\<^sub>2)"
+  proof (induction \<Gamma>\<^sub>1 \<Lambda>\<^sub>2 \<Gamma>\<^sub>2 arbitrary: \<Lambda>\<^sub>1 rule: typecheck_decls.induct)
+  case (tcd_cons \<Gamma>\<^sub>1 \<delta> \<Gamma>\<^sub>2 \<Lambda>\<^sub>2 \<Gamma>\<^sub>3)
+    moreover hence "\<Gamma>\<^sub>2 \<tturnstile> combine\<^sub>d \<Lambda>\<^sub>1 (assemble_context' \<delta>)" by simp
+    ultimately show ?case by fastforce
+  qed simp_all
+
+lemma [simp]: "empty_static \<tturnstile> empty_dynamic" 
+  by (simp add: typecheck_environment_def empty_static_def empty_dynamic_def)
+
+lemma [simp]: "empty_static \<Turnstile> \<Lambda> :: \<Gamma> \<Longrightarrow> \<Gamma> \<tturnstile> assemble_context \<Lambda>"
+  proof -
+    assume "empty_static \<Turnstile> \<Lambda> :: \<Gamma>"
+    moreover have "empty_static \<tturnstile> empty_dynamic" by simp
+    ultimately have "\<Gamma> \<tturnstile> combine\<^sub>d empty_dynamic (assemble_context \<Lambda>)" by (metis tc_defs_parts)
+    thus "\<Gamma> \<tturnstile> assemble_context \<Lambda>" by simp
+  qed                                                                  
+
+theorem progress [simp]: "\<Pi> \<TTurnstile> \<Gamma> \<rightarrow> t \<Longrightarrow> is_completed \<Pi> \<or> (\<exists>\<Pi>'. \<Pi> \<leadsto> \<Pi>')"
+  proof (induction \<Pi> \<Gamma> t rule: typecheck_prog.induct)
+  case (tcp_prog \<Lambda> \<Gamma> e t\<^sub>1 t\<^sub>2 v)
+    thus ?case 
+      proof (cases "e = \<epsilon>")
+      case False
+        with tcp_prog obtain e' v' where "assemble_context \<Lambda> \<turnstile> e \<cdot> v \<leadsto> e' \<cdot> v'" by fastforce
+        with tcp_prog have "Prog \<Lambda> e v \<leadsto> Prog \<Lambda> e' v'" by simp
+        thus ?thesis by fastforce
+      qed simp_all
+  qed
+
+theorem preservation [simp]: "\<Pi> \<leadsto> \<Pi>' \<Longrightarrow> \<Pi> \<TTurnstile> \<Gamma> \<rightarrow> t \<Longrightarrow> \<Pi>' \<TTurnstile> \<Gamma> \<rightarrow> t"
+  proof (induction \<Pi> \<Pi>' rule: evaluate_prog.induct)
+  case (ev_prog \<Lambda> e v e' v')
+    moreover then obtain t\<^sub>1 where T: "(empty_static \<Turnstile> \<Lambda> :: \<Gamma>) \<and> (\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t) \<and> \<Gamma> \<turnstile> v : t\<^sub>1" 
+      by blast
+    ultimately obtain t\<^sub>2 where "(\<Gamma> \<turnstile> e' : t\<^sub>2 \<rightarrow> t) \<and> (\<Gamma> \<turnstile> v' : t\<^sub>2)" by fastforce
+    with T show ?case by fastforce
+  qed
+
+(* big step evaluation *)
+
+inductive total_evaluate_prog :: "prog \<Rightarrow> val \<Rightarrow> bool" (infix "\<Down>" 60) where
+  ptev_base [simp]: "Prog \<Lambda> \<epsilon> v \<Down> v"
+| ptev_step [simp]: "Prog \<Lambda> e v \<leadsto> Prog \<Lambda> e' v' \<Longrightarrow> Prog \<Lambda> e' v' \<Down> v'' \<Longrightarrow> Prog \<Lambda> e v \<Down> v''"
+
+inductive total_evaluate_prog' :: "prog \<Rightarrow> val \<Rightarrow> bool" (infix "\<Down>\<Down>" 60) where
+  ptev_step' [simp]: "assemble_context \<Lambda> \<turnstile> e \<cdot> v \<Down> v' \<Longrightarrow> Prog \<Lambda> e v \<Down>\<Down> v'"
+
+inductive_cases [elim]: "Prog \<Lambda> e v \<Down>\<Down> v'"
+
+lemma [simp]: "\<Pi> \<Down> v = \<Pi> \<Down>\<Down> v"
+  proof
+    show "\<Pi> \<Down> v \<Longrightarrow> \<Pi> \<Down>\<Down> v" by (induction \<Pi> v rule: total_evaluate_prog.induct) fastforce+
+  next 
+    assume "\<Pi> \<Down>\<Down> v"
+    thus "\<Pi> \<Down> v"
+      proof (induction \<Pi> v rule: total_evaluate_prog'.induct)
+      case (ptev_step' \<Lambda> e v v')
+        thus ?case 
+          proof (induction "assemble_context \<Lambda>" e v v' rule: total_eval.induct)
+          case (tev_step e v e' v' v'')
+            moreover hence "Prog \<Lambda> e v \<leadsto> Prog \<Lambda> e' v'" by simp
+            ultimately show ?case by (metis total_evaluate_prog.ptev_step)
+          qed simp_all
+      qed
+  qed
+
+(* since we are a turing-complete language, total progress is not provable *)
+
+lemma [simp]: "\<Pi> \<Down>\<Down> v \<Longrightarrow> \<Pi> \<TTurnstile> \<Gamma> \<rightarrow> t \<Longrightarrow> \<Gamma> \<turnstile> v : t"
+  by (induction \<Pi> v rule: total_evaluate_prog'.induct) auto
+
+theorem total_preservation: "\<Pi> \<Down> v \<Longrightarrow> \<Pi> \<TTurnstile> \<Gamma> \<rightarrow> t \<Longrightarrow> \<Gamma> \<turnstile> v : t"
+  by simp
 
 end
