@@ -93,11 +93,14 @@ inductive_cases [elim]: "\<Gamma> \<turnstile> InjV f v : t"
 inductive typecheck\<^sub>c\<^sub>e :: "static_environment \<Rightarrow> funct \<Rightarrow> (name \<times> name list) list \<Rightarrow> 
     (name \<rightharpoonup> type \<times> type) \<Rightarrow> bool" where
   "typecheck\<^sub>c\<^sub>e \<Gamma> F [] Map.empty" 
-| "typecheck\<^sub>c\<^sub>e \<Gamma> F cts \<Gamma>' \<Longrightarrow> those (map (map_option \<mu> o var\<^sub>t_type \<Gamma>) ts) = Some ts' \<Longrightarrow> 
-    typecheck\<^sub>c\<^sub>e \<Gamma> F ((x, ts) # cts) (\<Gamma>'(x \<mapsto> (foldr (op \<otimes>) ts' \<one>, \<mu> F)))"
+| "typecheck\<^sub>c\<^sub>e \<Gamma> F cts \<Gamma>\<^sub>e \<Longrightarrow> those (map (map_option \<mu> o var\<^sub>t_type \<Gamma>) ts) = Some ts' \<Longrightarrow> 
+    typecheck\<^sub>c\<^sub>e \<Gamma> F ((x, ts) # cts) (\<Gamma>\<^sub>e(x \<mapsto> (foldr (op \<otimes>) ts' \<one>, \<mu> F)))"
 
-definition typecheck\<^sub>c\<^sub>v :: "funct \<Rightarrow> (name \<times> name list) list \<Rightarrow> (name \<rightharpoonup> type list \<times> type)" where
-  "typecheck\<^sub>c\<^sub>v F cts x = (if x \<in> fst ` set cts then Some (\<mu> F) else None)"
+inductive typecheck\<^sub>c\<^sub>v :: "static_environment \<Rightarrow> funct \<Rightarrow> (name \<times> name list) list \<Rightarrow> 
+    (name \<rightharpoonup> type list \<times> type) \<Rightarrow> bool" where
+    "typecheck\<^sub>c\<^sub>v \<Gamma> F ((x, ts) # cts) Map.empty"
+| "typecheck\<^sub>c\<^sub>v \<Gamma> F cts \<Gamma>\<^sub>v \<Longrightarrow> those (map (map_option \<mu> o var\<^sub>t_type \<Gamma>) ts) = Some ts' \<Longrightarrow> 
+    typecheck\<^sub>c\<^sub>v \<Gamma> F ((x, ts) # cts) (\<Gamma>\<^sub>v(x \<mapsto> (ts', \<mu> F)))"
 
 fun typecheck\<^sub>c\<^sub>t_arg :: "static_environment \<Rightarrow> name \<Rightarrow> name \<Rightarrow> funct option" where
   "typecheck\<^sub>c\<^sub>t_arg \<Gamma> tn t = (if t = tn then Some Id else map_option (K o \<mu>) (var\<^sub>t_type \<Gamma> t))"
@@ -113,9 +116,9 @@ definition typecheck\<^sub>c\<^sub>t\<^sub>s :: "static_environment \<Rightarrow
 
 inductive typecheck\<^sub>d\<^sub>t :: "static_environment \<Rightarrow> name \<Rightarrow> (name \<times> name list) list \<Rightarrow> 
     static_environment \<Rightarrow> bool" where
-  "typecheck\<^sub>c\<^sub>t\<^sub>s \<Gamma> n cts = Some F \<Longrightarrow> typecheck\<^sub>c\<^sub>e \<Gamma> F cts \<Gamma>' \<Longrightarrow> 
-      typecheck\<^sub>d\<^sub>t \<Gamma> n cts \<lparr> var\<^sub>e_type = \<Gamma>', 
-                            var\<^sub>v_type = typecheck\<^sub>c\<^sub>v F cts, 
+  "typecheck\<^sub>c\<^sub>t\<^sub>s \<Gamma> n cts = Some F \<Longrightarrow> typecheck\<^sub>c\<^sub>e \<Gamma> F cts \<Gamma>\<^sub>e \<Longrightarrow> typecheck\<^sub>c\<^sub>v \<Gamma> F cts \<Gamma>\<^sub>v \<Longrightarrow>
+      typecheck\<^sub>d\<^sub>t \<Gamma> n cts \<lparr> var\<^sub>e_type = \<Gamma>\<^sub>e, 
+                            var\<^sub>v_type = \<Gamma>\<^sub>v, 
                             var\<^sub>t_type = [n \<mapsto> F] \<rparr>"
 
 inductive typecheck_decl :: "static_environment \<Rightarrow> decl \<Rightarrow> static_environment \<Rightarrow> bool" 

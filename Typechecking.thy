@@ -158,6 +158,10 @@ fun algorithmic_typecheck\<^sub>c\<^sub>e :: "static_environment \<Rightarrow> f
             | None \<Rightarrow> None
      else algorithmic_typecheck\<^sub>c\<^sub>e \<Gamma> F cts y)"
 
+definition algorithmic_typecheck\<^sub>c\<^sub>v :: "funct \<Rightarrow> (name \<times> name list) list \<Rightarrow> 
+    (name \<rightharpoonup> type list \<times> type)" where
+  "typecheck\<^sub>c\<^sub>v F cts x = (if x \<in> fst ` set cts then Some (\<mu> F) else None)"
+
 definition algorithmic_typecheck\<^sub>d\<^sub>t :: "static_environment \<Rightarrow> name \<Rightarrow> (name \<times> name list) list \<Rightarrow> 
     static_environment option" where
   "algorithmic_typecheck\<^sub>d\<^sub>t \<Gamma> n cts = (case typecheck\<^sub>c\<^sub>t\<^sub>s \<Gamma> n cts of

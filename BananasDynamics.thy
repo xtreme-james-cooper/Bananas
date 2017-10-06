@@ -26,12 +26,21 @@ definition combine\<^sub>d :: "dynamic_environment \<Rightarrow> dynamic_environ
 definition domain\<^sub>d :: "dynamic_environment \<Rightarrow> name set" where
   "domain\<^sub>d \<Lambda> = dom (var\<^sub>e_bind \<Lambda>) \<union> dom (var\<^sub>v_bind \<Lambda>) \<union> dom (var\<^sub>t_bind \<Lambda>)"
 
+definition typecheck_env\<^sub>e :: "static_environment \<Rightarrow> (name \<rightharpoonup> (type \<times> type)) \<Rightarrow> (name \<rightharpoonup> expr) \<Rightarrow> 
+    bool" where
+  "typecheck_env\<^sub>e \<Gamma> \<Gamma>\<^sub>e \<Lambda>\<^sub>e = (dom \<Gamma>\<^sub>e = dom \<Lambda>\<^sub>e \<and> 
+    (\<forall>x t\<^sub>1 t\<^sub>2. \<Gamma>\<^sub>e x = Some (t\<^sub>1, t\<^sub>2) \<longrightarrow> (\<exists>e. \<Lambda>\<^sub>e x = Some e \<and> \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2)))"
+
+definition typecheck_env\<^sub>v :: "static_environment \<Rightarrow> (name \<rightharpoonup> (type list \<times> type)) \<Rightarrow> 
+    (name \<rightharpoonup> val list \<Rightarrow> val) \<Rightarrow> bool" where
+  "typecheck_env\<^sub>v \<Gamma> \<Gamma>\<^sub>v \<Lambda>\<^sub>v = (dom \<Gamma>\<^sub>v = dom \<Lambda>\<^sub>v \<and> 
+      (\<forall>x ts t. \<Gamma>\<^sub>v x = Some (ts, t) \<longrightarrow> (\<forall>vs. length vs = length ts \<longrightarrow> 
+        (\<forall>i < length vs. \<Gamma> \<turnstile> vs ! i : ts ! i) \<longrightarrow> (\<exists>v. \<Lambda>\<^sub>v x = Some v \<and> \<Gamma> \<turnstile> v vs : t))))"
+
 definition typecheck_environment :: "static_environment \<Rightarrow> dynamic_environment \<Rightarrow> bool" 
     (infix "\<tturnstile>" 60) where
-  "\<Gamma> \<tturnstile> \<Lambda> = (var\<^sub>t_type \<Gamma> = var\<^sub>t_bind \<Lambda> \<and> dom (var\<^sub>e_type \<Gamma>) = dom (var\<^sub>e_bind \<Lambda>) \<and> 
-    dom (var\<^sub>t_type \<Gamma>) = dom (var\<^sub>t_bind \<Lambda>) \<and> 
-      (\<forall>x t\<^sub>1 t\<^sub>2. var\<^sub>e_type \<Gamma> x = Some (t\<^sub>1, t\<^sub>2) \<longrightarrow> (\<exists>e. var\<^sub>e_bind \<Lambda> x = Some e \<and> \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2)))" 
-        (* \<and> (\<forall>x t. var\<^sub>v_type \<Gamma> x = Some t \<longrightarrow> (\<exists>v. var\<^sub>v_bind \<Lambda> x = Some v \<and> \<Gamma> \<turnstile> v : t)))" *)
+  "\<Gamma> \<tturnstile> \<Lambda> = (var\<^sub>t_type \<Gamma> = var\<^sub>t_bind \<Lambda> \<and> typecheck_env\<^sub>e \<Gamma> (var\<^sub>e_type \<Gamma>) (var\<^sub>e_bind \<Lambda>) \<and> 
+    typecheck_env\<^sub>v \<Gamma> (var\<^sub>v_type \<Gamma>) (var\<^sub>v_bind \<Lambda>))"
 
 fun apply_functor_expr :: "expr \<Rightarrow> funct \<Rightarrow> expr" (infixl "\<bullet>" 75) where
   "e \<bullet> Id = e"
