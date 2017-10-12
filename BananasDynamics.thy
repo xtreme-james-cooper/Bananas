@@ -78,9 +78,8 @@ fun assemble_context\<^sub>c\<^sub>v :: "name \<Rightarrow> (name \<times> name 
 | "assemble_context\<^sub>c\<^sub>v n ((x, ts) # cts) = (assemble_context\<^sub>c\<^sub>v n cts)(x \<mapsto> \<lambda>vs. foldr PairV vs UnitV)"
 
 primrec assemble_context' :: "static_environment \<Rightarrow> decl \<Rightarrow> dynamic_environment" where
-(* TODO get rid of "the" *)
   "assemble_context' \<Gamma> (TypeDecl x cts) = 
-    \<lparr> var\<^sub>e_bind = assemble_context\<^sub>c\<^sub>e x 0 cts, var\<^sub>t_bind = [x \<mapsto> the (typecheck\<^sub>c\<^sub>t\<^sub>s \<Gamma> x cts)] \<rparr>" 
+    \<lparr> var\<^sub>e_bind = assemble_context\<^sub>c\<^sub>e x 0 cts, var\<^sub>t_bind = [x := typecheck\<^sub>c\<^sub>t\<^sub>s \<Gamma> x cts] \<rparr>" 
 | "assemble_context' \<Gamma> (ExprDecl x e) = empty_dynamic \<lparr> var\<^sub>e_bind := [x \<mapsto> e] \<rparr>"
 
 inductive assemble_context :: "static_environment \<Rightarrow> decl list \<Rightarrow> dynamic_environment \<Rightarrow> bool" where
