@@ -1,5 +1,5 @@
 theory Typechecking
-imports BananasProgram Unification
+imports BananasStatics Unification
 begin
 
 datatype flat_type = UNIT | VOID | TIMES | PLUS | ARROW | MU | IDF | CONSTF | TIMESF | PLUSF
@@ -132,9 +132,6 @@ primrec assemble_constraints\<^sub>e :: "static_environment \<Rightarrow> flat_t
       Some F \<Rightarrow> let (cs, free') = assemble_constraints\<^sub>v \<Gamma> (flatten_type (\<mu> F \<star> F)) free v
                 in ((x, flatten_type (\<mu> F)) # cs, free')
     | None \<Rightarrow> ([(CON UNIT [], CON IDF [])], free))"
-| "assemble_constraints\<^sub>v \<Gamma> x free (VarV n) = (case var\<^sub>v_type \<Gamma> n of 
-      Some t \<Rightarrow> ([(x, flatten_type t)], free)
-    | None \<Rightarrow> ([(CON UNIT [], CON IDF [])], free))"
 
 fun algorithmic_typecheck\<^sub>e :: "static_environment \<Rightarrow> expr \<Rightarrow> (type \<times> type) option" where
   "algorithmic_typecheck\<^sub>e \<Gamma> e = 
@@ -160,7 +157,7 @@ fun algorithmic_typecheck\<^sub>c\<^sub>e :: "static_environment \<Rightarrow> f
 
 definition algorithmic_typecheck\<^sub>c\<^sub>v :: "funct \<Rightarrow> (name \<times> name list) list \<Rightarrow> 
     (name \<rightharpoonup> type list \<times> type)" where
-  "typecheck\<^sub>c\<^sub>v F cts x = (if x \<in> fst ` set cts then Some (\<mu> F) else None)"
+  "algorithmic_typecheck\<^sub>c\<^sub>v F cts x = (if x \<in> fst ` set cts then Some (\<mu> F) else None)"
 
 definition algorithmic_typecheck\<^sub>d\<^sub>t :: "static_environment \<Rightarrow> name \<Rightarrow> (name \<times> name list) list \<Rightarrow> 
     static_environment option" where

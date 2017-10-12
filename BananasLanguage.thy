@@ -36,12 +36,10 @@ and val =
 
 datatype decl = 
   TypeDecl name "(name \<times> name list) list"
-| ValDecl name val
 | ExprDecl name expr
 
 primrec binders\<^sub>d :: "decl \<Rightarrow> name set" where
   "binders\<^sub>d (TypeDecl x cts) = insert x (fst ` set cts)"
-| "binders\<^sub>d (ValDecl x v) = {x}"
 | "binders\<^sub>d (ExprDecl x e) = {x}"
 
 fun binders :: "decl list \<Rightarrow> name set" where

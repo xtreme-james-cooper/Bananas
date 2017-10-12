@@ -8,11 +8,11 @@ inductive total_eval :: "dynamic_environment \<Rightarrow> expr \<Rightarrow> va
 | tev_step [simp]: "\<Lambda> \<turnstile> e \<cdot> v \<leadsto> e' \<cdot> v' \<Longrightarrow> \<Lambda> \<turnstile> e' \<cdot> v' \<Down> v'' \<Longrightarrow> \<Lambda> \<turnstile> e \<cdot> v \<Down> v''"
 
 inductive total_evaluate_prog :: "prog \<Rightarrow> val \<Rightarrow> bool" (infix "\<Down>" 60) where
-  ptev_base [simp]: "Prog \<Lambda> \<epsilon> v \<Down> v"
-| ptev_step [simp]: "Prog \<Lambda> e v \<leadsto> Prog \<Lambda> e' v' \<Longrightarrow> Prog \<Lambda> e' v' \<Down> v'' \<Longrightarrow> Prog \<Lambda> e v \<Down> v''"
+  ptev_base [simp]: "Prog \<Delta> \<epsilon> v \<Down> v"
+| ptev_step [simp]: "Prog \<Delta> e v \<leadsto> Prog \<Delta> e' v' \<Longrightarrow> Prog \<Delta> e' v' \<Down> v'' \<Longrightarrow> Prog \<Delta> e v \<Down> v''"
 
 inductive total_evaluate_prog' :: "prog \<Rightarrow> val \<Rightarrow> bool" (infix "\<Down>\<Down>" 60) where
-  ptev_step' [simp]: "assemble_context \<Lambda> \<turnstile> e \<cdot> v \<Down> v' \<Longrightarrow> Prog \<Lambda> e v \<Down>\<Down> v'"
+  ptev_step' [simp]: "assemble_context empty_static \<Delta> \<Lambda> \<Longrightarrow> \<Lambda> \<turnstile> e \<cdot> v \<Down> v' \<Longrightarrow> Prog \<Delta> e v \<Down>\<Down> v'"
 
 inductive_cases [elim]: "Prog \<Lambda> e v \<Down>\<Down> v'"
 
@@ -85,11 +85,11 @@ lemma [simp]: "\<Pi> \<Down> v = \<Pi> \<Down>\<Down> v"
     assume "\<Pi> \<Down>\<Down> v"
     thus "\<Pi> \<Down> v"
       proof (induction \<Pi> v rule: total_evaluate_prog'.induct)
-      case (ptev_step' \<Lambda> e v v')
-        thus ?case 
-          proof (induction "assemble_context \<Lambda>" e v v' rule: total_eval.induct)
-          case (tev_step e v e' v' v'')
-            moreover hence "Prog \<Lambda> e v \<leadsto> Prog \<Lambda> e' v'" by simp
+      case (ptev_step' \<Delta> \<Lambda> e v v')
+        with ptev_step'(2) show ?case 
+          proof (induction \<Lambda> e v v' rule: total_eval.induct)
+          case (tev_step \<Lambda> e v e' v' v'')
+            moreover hence "Prog \<Delta> e v \<leadsto> Prog \<Delta> e' v'" by simp
             ultimately show ?case by (metis total_evaluate_prog.ptev_step)
           qed simp_all
       qed

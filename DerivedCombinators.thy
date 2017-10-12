@@ -1,5 +1,5 @@
 theory DerivedCombinators
-imports BananasExpression
+imports BananasBigStepDynamics
 begin
 
 (* derived types *)

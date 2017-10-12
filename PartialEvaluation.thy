@@ -1,5 +1,5 @@
 theory PartialEvaluation
-imports BananasProgram
+imports BananasBigStepDynamics
 begin
 
 fun partial_evaluation :: "dynamic_environment \<Rightarrow> nat \<Rightarrow> expr \<Rightarrow> val \<Rightarrow> val option" where

@@ -4,43 +4,29 @@ begin
 
 record dynamic_environment = 
   var\<^sub>e_bind :: "name \<rightharpoonup> expr" 
-  var\<^sub>v_bind :: "name \<rightharpoonup> val list \<Rightarrow> val" 
   var\<^sub>t_bind :: "name \<rightharpoonup> funct"
 
 definition empty_dynamic :: dynamic_environment where
-  "empty_dynamic = \<lparr> var\<^sub>e_bind = Map.empty, var\<^sub>v_bind = Map.empty, var\<^sub>t_bind = Map.empty \<rparr>"
+  "empty_dynamic = \<lparr> var\<^sub>e_bind = Map.empty, var\<^sub>t_bind = Map.empty \<rparr>"
 
 definition extend\<^sub>e\<^sub>d :: "name \<Rightarrow> expr \<Rightarrow> dynamic_environment \<Rightarrow> dynamic_environment" where
   "extend\<^sub>e\<^sub>d x t \<Lambda> = \<Lambda>\<lparr> var\<^sub>e_bind := var\<^sub>e_bind \<Lambda>(x \<mapsto> t) \<rparr>"
 
-definition extend\<^sub>v\<^sub>d :: "name \<Rightarrow> (val list \<Rightarrow> val) \<Rightarrow> dynamic_environment \<Rightarrow> dynamic_environment" 
-    where
-  "extend\<^sub>v\<^sub>d x t \<Lambda> = \<Lambda>\<lparr> var\<^sub>v_bind := var\<^sub>v_bind \<Lambda>(x \<mapsto> t) \<rparr>"
-
 definition combine\<^sub>d :: "dynamic_environment \<Rightarrow> dynamic_environment \<Rightarrow> dynamic_environment" where
-  "combine\<^sub>d \<Lambda> \<Lambda>' = \<lparr> 
-      var\<^sub>e_bind = var\<^sub>e_bind \<Lambda> ++ var\<^sub>e_bind \<Lambda>', 
-      var\<^sub>v_bind = var\<^sub>v_bind \<Lambda> ++ var\<^sub>v_bind \<Lambda>', 
-      var\<^sub>t_bind = var\<^sub>t_bind \<Lambda> ++ var\<^sub>t_bind \<Lambda>' \<rparr>"
+  "combine\<^sub>d \<Lambda> \<Lambda>' = 
+    \<lparr> var\<^sub>e_bind = var\<^sub>e_bind \<Lambda> ++ var\<^sub>e_bind \<Lambda>', var\<^sub>t_bind = var\<^sub>t_bind \<Lambda> ++ var\<^sub>t_bind \<Lambda>' \<rparr>"
 
 definition domain\<^sub>d :: "dynamic_environment \<Rightarrow> name set" where
-  "domain\<^sub>d \<Lambda> = dom (var\<^sub>e_bind \<Lambda>) \<union> dom (var\<^sub>v_bind \<Lambda>) \<union> dom (var\<^sub>t_bind \<Lambda>)"
+  "domain\<^sub>d \<Lambda> = dom (var\<^sub>e_bind \<Lambda>) \<union> dom (var\<^sub>t_bind \<Lambda>)"
 
 definition typecheck_env\<^sub>e :: "static_environment \<Rightarrow> (name \<rightharpoonup> (type \<times> type)) \<Rightarrow> (name \<rightharpoonup> expr) \<Rightarrow> 
     bool" where
   "typecheck_env\<^sub>e \<Gamma> \<Gamma>\<^sub>e \<Lambda>\<^sub>e = (dom \<Gamma>\<^sub>e = dom \<Lambda>\<^sub>e \<and> 
     (\<forall>x t\<^sub>1 t\<^sub>2. \<Gamma>\<^sub>e x = Some (t\<^sub>1, t\<^sub>2) \<longrightarrow> (\<exists>e. \<Lambda>\<^sub>e x = Some e \<and> \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2)))"
 
-definition typecheck_env\<^sub>v :: "static_environment \<Rightarrow> (name \<rightharpoonup> (type list \<times> type)) \<Rightarrow> 
-    (name \<rightharpoonup> val list \<Rightarrow> val) \<Rightarrow> bool" where
-  "typecheck_env\<^sub>v \<Gamma> \<Gamma>\<^sub>v \<Lambda>\<^sub>v = (dom \<Gamma>\<^sub>v = dom \<Lambda>\<^sub>v \<and> 
-      (\<forall>x ts t. \<Gamma>\<^sub>v x = Some (ts, t) \<longrightarrow> (\<forall>vs. length vs = length ts \<longrightarrow> 
-        (\<forall>i < length vs. \<Gamma> \<turnstile> vs ! i : ts ! i) \<longrightarrow> (\<exists>v. \<Lambda>\<^sub>v x = Some v \<and> \<Gamma> \<turnstile> v vs : t))))"
-
 definition typecheck_environment :: "static_environment \<Rightarrow> dynamic_environment \<Rightarrow> bool" 
     (infix "\<tturnstile>" 60) where
-  "\<Gamma> \<tturnstile> \<Lambda> = (var\<^sub>t_type \<Gamma> = var\<^sub>t_bind \<Lambda> \<and> typecheck_env\<^sub>e \<Gamma> (var\<^sub>e_type \<Gamma>) (var\<^sub>e_bind \<Lambda>) \<and> 
-    typecheck_env\<^sub>v \<Gamma> (var\<^sub>v_type \<Gamma>) (var\<^sub>v_bind \<Lambda>))"
+  "\<Gamma> \<tturnstile> \<Lambda> = (var\<^sub>t_type \<Gamma> = var\<^sub>t_bind \<Lambda> \<and> typecheck_env\<^sub>e \<Gamma> (var\<^sub>e_type \<Gamma>) (var\<^sub>e_bind \<Lambda>))"
 
 fun apply_functor_expr :: "expr \<Rightarrow> funct \<Rightarrow> expr" (infixl "\<bullet>" 75) where
   "e \<bullet> Id = e"
@@ -92,11 +78,9 @@ fun assemble_context\<^sub>c\<^sub>v :: "name \<Rightarrow> (name \<times> name 
 | "assemble_context\<^sub>c\<^sub>v n ((x, ts) # cts) = (assemble_context\<^sub>c\<^sub>v n cts)(x \<mapsto> \<lambda>vs. foldr PairV vs UnitV)"
 
 primrec assemble_context' :: "static_environment \<Rightarrow> decl \<Rightarrow> dynamic_environment" where
-  "assemble_context' \<Gamma> (TypeDecl x cts) = \<lparr> 
-    var\<^sub>e_bind = assemble_context\<^sub>c\<^sub>e x 0 cts, 
-    var\<^sub>v_bind = assemble_context\<^sub>c\<^sub>v x cts, 
-    var\<^sub>t_bind = [x \<mapsto> the (typecheck\<^sub>c\<^sub>t\<^sub>s \<Gamma> x cts)] \<rparr>" (* TODO get rid of "the" *)
-| "assemble_context' \<Gamma> (ValDecl x v) = empty_dynamic \<lparr> var\<^sub>v_bind := [x \<mapsto> \<lambda>x. v] \<rparr>"
+(* TODO get rid of "the" *)
+  "assemble_context' \<Gamma> (TypeDecl x cts) = 
+    \<lparr> var\<^sub>e_bind = assemble_context\<^sub>c\<^sub>e x 0 cts, var\<^sub>t_bind = [x \<mapsto> the (typecheck\<^sub>c\<^sub>t\<^sub>s \<Gamma> x cts)] \<rparr>" 
 | "assemble_context' \<Gamma> (ExprDecl x e) = empty_dynamic \<lparr> var\<^sub>e_bind := [x \<mapsto> e] \<rparr>"
 
 inductive assemble_context :: "static_environment \<Rightarrow> decl list \<Rightarrow> dynamic_environment \<Rightarrow> bool" where
@@ -121,19 +105,7 @@ inductive_cases [elim]: "Prog \<Delta> e v \<leadsto> \<Pi>"
 lemma [simp]: "var\<^sub>e_bind (extend\<^sub>e\<^sub>d x e \<Lambda>) = (var\<^sub>e_bind \<Lambda>)(x \<mapsto> e)"
   by (simp add: extend\<^sub>e\<^sub>d_def)
 
-lemma [simp]: "var\<^sub>v_bind (extend\<^sub>e\<^sub>d x e \<Lambda>) = var\<^sub>v_bind \<Lambda>"
-  by (simp add: extend\<^sub>e\<^sub>d_def)
-
 lemma [simp]: "var\<^sub>t_bind (extend\<^sub>e\<^sub>d x e \<Lambda>) = var\<^sub>t_bind \<Lambda>"
   by (simp add: extend\<^sub>e\<^sub>d_def)
-
-lemma [simp]: "var\<^sub>v_bind (extend\<^sub>v\<^sub>d x v \<Lambda>) = (var\<^sub>v_bind \<Lambda>)(x \<mapsto> v)"
-  by (simp add: extend\<^sub>v\<^sub>d_def)
-
-lemma [simp]: "var\<^sub>e_bind (extend\<^sub>v\<^sub>d x v \<Lambda>) = var\<^sub>e_bind \<Lambda>"
-  by (simp add: extend\<^sub>v\<^sub>d_def)
-
-lemma [simp]: "var\<^sub>t_bind (extend\<^sub>v\<^sub>d x v \<Lambda>) = var\<^sub>t_bind \<Lambda>"
-  by (simp add: extend\<^sub>v\<^sub>d_def)
 
 end

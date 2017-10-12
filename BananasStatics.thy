@@ -4,26 +4,20 @@ begin
 
 record static_environment = 
   var\<^sub>e_type :: "name \<rightharpoonup> type \<times> type" 
-  var\<^sub>v_type :: "name \<rightharpoonup> type list \<times> type" 
   var\<^sub>t_type :: "name \<rightharpoonup> funct"
 
 definition empty_static :: static_environment where
-  "empty_static = \<lparr> var\<^sub>e_type = Map.empty, var\<^sub>v_type = Map.empty, var\<^sub>t_type = Map.empty \<rparr>"
+  "empty_static = \<lparr> var\<^sub>e_type = Map.empty, var\<^sub>t_type = Map.empty \<rparr>"
 
 definition extend\<^sub>e\<^sub>s :: "name \<Rightarrow> type \<times> type \<Rightarrow> static_environment \<Rightarrow> static_environment" where
   "extend\<^sub>e\<^sub>s x t \<Gamma> = \<Gamma>\<lparr> var\<^sub>e_type := var\<^sub>e_type \<Gamma>(x \<mapsto> t) \<rparr>"
 
-definition extend\<^sub>v\<^sub>s :: "name \<Rightarrow> type list \<times> type \<Rightarrow> static_environment \<Rightarrow> static_environment" where
-  "extend\<^sub>v\<^sub>s x t \<Gamma> = \<Gamma>\<lparr> var\<^sub>v_type := var\<^sub>v_type \<Gamma>(x \<mapsto> t) \<rparr>"
-
 definition combine\<^sub>s :: "static_environment \<Rightarrow> static_environment \<Rightarrow> static_environment" where
-  "combine\<^sub>s \<Gamma> \<Gamma>' = \<lparr> 
-      var\<^sub>e_type = var\<^sub>e_type \<Gamma> ++ var\<^sub>e_type \<Gamma>', 
-      var\<^sub>v_type = var\<^sub>v_type \<Gamma> ++ var\<^sub>v_type \<Gamma>', 
-      var\<^sub>t_type = var\<^sub>t_type \<Gamma> ++ var\<^sub>t_type \<Gamma>' \<rparr>"
+  "combine\<^sub>s \<Gamma> \<Gamma>' = 
+    \<lparr> var\<^sub>e_type = var\<^sub>e_type \<Gamma> ++ var\<^sub>e_type \<Gamma>', var\<^sub>t_type = var\<^sub>t_type \<Gamma> ++ var\<^sub>t_type \<Gamma>' \<rparr>"
 
 definition domain\<^sub>s :: "static_environment \<Rightarrow> name set" where
-  "domain\<^sub>s \<Gamma> = dom (var\<^sub>e_type \<Gamma>) \<union> dom (var\<^sub>v_type \<Gamma>) \<union> dom (var\<^sub>t_type \<Gamma>)"
+  "domain\<^sub>s \<Gamma> = dom (var\<^sub>e_type \<Gamma>) \<union> dom (var\<^sub>t_type \<Gamma>)"
 
 fun apply_functor_type :: "type \<Rightarrow> funct \<Rightarrow> type" (infixl "\<star>" 75) where
   "t \<star> Id = t"
@@ -90,46 +84,46 @@ inductive_cases [elim]: "\<Gamma> \<turnstile> InlV v : t"
 inductive_cases [elim]: "\<Gamma> \<turnstile> FunV e : t"
 inductive_cases [elim]: "\<Gamma> \<turnstile> InjV f v : t"
 
+abbreviation ctor_type :: "type list \<Rightarrow> type" where
+  "ctor_type ts \<equiv> foldr (op \<otimes>) ts \<one>"
+
 inductive typecheck\<^sub>c\<^sub>e :: "static_environment \<Rightarrow> funct \<Rightarrow> (name \<times> name list) list \<Rightarrow> 
     (name \<rightharpoonup> type \<times> type) \<Rightarrow> bool" where
   tcce_nil [simp]: "typecheck\<^sub>c\<^sub>e \<Gamma> F [] Map.empty" 
 | tcce_cons [simp]: "typecheck\<^sub>c\<^sub>e \<Gamma> F cts \<Gamma>\<^sub>e \<Longrightarrow> 
     those (map (map_option \<mu> o var\<^sub>t_type \<Gamma>) ts) = Some ts' \<Longrightarrow> 
-      typecheck\<^sub>c\<^sub>e \<Gamma> F ((x, ts) # cts) (\<Gamma>\<^sub>e(x \<mapsto> (foldr (op \<otimes>) ts' \<one>, \<mu> F)))"
+      typecheck\<^sub>c\<^sub>e \<Gamma> F ((x, ts) # cts) (\<Gamma>\<^sub>e(x \<mapsto> (ctor_type ts', \<mu> F)))"
 
-inductive typecheck\<^sub>c\<^sub>v :: "static_environment \<Rightarrow> funct \<Rightarrow> (name \<times> name list) list \<Rightarrow> 
-    (name \<rightharpoonup> type list \<times> type) \<Rightarrow> bool" where
-  tccv_nil [simp]: "typecheck\<^sub>c\<^sub>v \<Gamma> F [] Map.empty"
-| tccv_cons [simp]: "typecheck\<^sub>c\<^sub>v \<Gamma> F cts \<Gamma>\<^sub>v \<Longrightarrow> 
-    those (map (map_option \<mu> o var\<^sub>t_type \<Gamma>) ts) = Some ts' \<Longrightarrow> 
-      typecheck\<^sub>c\<^sub>v \<Gamma> F ((x, ts) # cts) (\<Gamma>\<^sub>v(x \<mapsto> (ts', \<mu> F)))"
+inductive_cases [elim]: "typecheck\<^sub>c\<^sub>e \<Gamma> F [] \<Gamma>\<^sub>e"
+inductive_cases [elim]: "typecheck\<^sub>c\<^sub>e \<Gamma> F ((x, ts) # cts) \<Gamma>\<^sub>e"
 
 fun typecheck\<^sub>c\<^sub>t_arg :: "static_environment \<Rightarrow> name \<Rightarrow> name \<Rightarrow> funct option" where
   "typecheck\<^sub>c\<^sub>t_arg \<Gamma> tn t = (if t = tn then Some Id else map_option (K o \<mu>) (var\<^sub>t_type \<Gamma> t))"
 
-primrec typecheck\<^sub>c\<^sub>t :: "static_environment \<Rightarrow> name \<Rightarrow> name \<times> name list \<Rightarrow> funct option" where
-  "typecheck\<^sub>c\<^sub>t \<Gamma> tn (x, ts) = 
-    map_option (\<lambda>fs. foldr (op \<Otimes>) fs (K \<one>)) (those (map (typecheck\<^sub>c\<^sub>t_arg \<Gamma> tn) ts))"
+abbreviation ctor_funct :: "funct list \<Rightarrow> funct" where
+  "ctor_funct Fs \<equiv> foldr (op \<Otimes>) Fs (K \<one>)"
 
-definition typecheck\<^sub>c\<^sub>t\<^sub>s :: "static_environment \<Rightarrow> name \<Rightarrow> (name \<times> name list) list \<Rightarrow> funct option" 
-    where
-  "typecheck\<^sub>c\<^sub>t\<^sub>s \<Gamma> x cts = 
-    map_option (\<lambda>fs. foldr (op \<Oplus>) fs (K \<zero>)) (those (map (typecheck\<^sub>c\<^sub>t \<Gamma> x) cts))"
+primrec typecheck\<^sub>c\<^sub>t :: "static_environment \<Rightarrow> name \<Rightarrow> name \<times> name list \<Rightarrow> funct option" where
+  "typecheck\<^sub>c\<^sub>t \<Gamma> tn (x, ts) = map_option ctor_funct (those (map (typecheck\<^sub>c\<^sub>t_arg \<Gamma> tn) ts))"
+
+abbreviation adt_type :: "funct list \<Rightarrow> funct" where
+  "adt_type Fs \<equiv> foldr (op \<Oplus>) Fs (K \<zero>)"
+
+definition typecheck\<^sub>c\<^sub>t\<^sub>s :: "static_environment \<Rightarrow> name \<Rightarrow> (name \<times> name list) list \<Rightarrow> 
+    funct option" where
+  "typecheck\<^sub>c\<^sub>t\<^sub>s \<Gamma> x cts = map_option adt_type (those (map (typecheck\<^sub>c\<^sub>t \<Gamma> x) cts))"
 
 inductive typecheck\<^sub>d\<^sub>t :: "static_environment \<Rightarrow> name \<Rightarrow> (name \<times> name list) list \<Rightarrow> 
     static_environment \<Rightarrow> bool" where
   tcdt [simp]: "typecheck\<^sub>c\<^sub>t\<^sub>s \<Gamma> n cts = Some F \<Longrightarrow> typecheck\<^sub>c\<^sub>e \<Gamma> F cts \<Gamma>\<^sub>e \<Longrightarrow> 
-    typecheck\<^sub>c\<^sub>v \<Gamma> F cts \<Gamma>\<^sub>v \<Longrightarrow> 
-      typecheck\<^sub>d\<^sub>t \<Gamma> n cts \<lparr> var\<^sub>e_type = \<Gamma>\<^sub>e, var\<^sub>v_type = \<Gamma>\<^sub>v, var\<^sub>t_type = [n \<mapsto> F] \<rparr>"
+      typecheck\<^sub>d\<^sub>t \<Gamma> n cts \<lparr> var\<^sub>e_type = \<Gamma>\<^sub>e, var\<^sub>t_type = [n \<mapsto> F] \<rparr>"
 
 inductive typecheck_decl :: "static_environment \<Rightarrow> decl \<Rightarrow> static_environment \<Rightarrow> bool" 
     (infix "\<Turnstile> _ :" 60) where
   tcd_type [simp]: "typecheck\<^sub>d\<^sub>t \<Gamma> x cts \<Gamma>' \<Longrightarrow> \<Gamma> \<Turnstile> TypeDecl x cts : combine\<^sub>s \<Gamma> \<Gamma>'"
-| tcd_val [simp]: "\<Gamma> \<turnstile> v : t \<Longrightarrow> \<Gamma> \<Turnstile> ValDecl x v : extend\<^sub>v\<^sub>s x ([], t) \<Gamma>"
 | tcd_expr [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> \<Gamma> \<Turnstile> ExprDecl x e : extend\<^sub>e\<^sub>s x (t\<^sub>1, t\<^sub>2) \<Gamma>"
 
 inductive_cases [elim]: "\<Gamma> \<Turnstile> TypeDecl x F : \<Gamma>'"
-inductive_cases [elim]: "\<Gamma> \<Turnstile> ValDecl x v : \<Gamma>'"
 inductive_cases [elim]: "\<Gamma> \<Turnstile> ExprDecl x e : \<Gamma>'"
 
 inductive typecheck_decls :: "static_environment \<Rightarrow> decl list \<Rightarrow> static_environment \<Rightarrow> bool" 
@@ -152,20 +146,8 @@ inductive_cases [elim]: "Prog \<Delta> e v \<TTurnstile> \<Gamma> \<rightarrow> 
 lemma [simp]: "var\<^sub>e_type (extend\<^sub>e\<^sub>s x (t\<^sub>1, t\<^sub>2) \<Gamma>) = (var\<^sub>e_type \<Gamma>)(x \<mapsto> (t\<^sub>1, t\<^sub>2))"
   by (simp add: extend\<^sub>e\<^sub>s_def)
 
-lemma [simp]: "var\<^sub>v_type (extend\<^sub>e\<^sub>s x (t\<^sub>1, t\<^sub>2) \<Gamma>) = var\<^sub>v_type \<Gamma>"
-  by (simp add: extend\<^sub>e\<^sub>s_def)
-
 lemma [simp]: "var\<^sub>t_type (extend\<^sub>e\<^sub>s x (t\<^sub>1, t\<^sub>2) \<Gamma>) = var\<^sub>t_type \<Gamma>"
   by (simp add: extend\<^sub>e\<^sub>s_def)
-
-lemma [simp]: "var\<^sub>v_type (extend\<^sub>v\<^sub>s x t \<Gamma>) = (var\<^sub>v_type \<Gamma>)(x \<mapsto> t)"
-  by (simp add: extend\<^sub>v\<^sub>s_def)
-
-lemma [simp]: "var\<^sub>e_type (extend\<^sub>v\<^sub>s x t \<Gamma>) = var\<^sub>e_type \<Gamma>"
-  by (simp add: extend\<^sub>v\<^sub>s_def)
-
-lemma [simp]: "var\<^sub>t_type (extend\<^sub>v\<^sub>s x t \<Gamma>) = var\<^sub>t_type \<Gamma>"
-  by (simp add: extend\<^sub>v\<^sub>s_def)
 
 lemma [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> x \<notin> domain\<^sub>s \<Gamma> \<Longrightarrow> extend\<^sub>e\<^sub>s x (t\<^sub>1', t\<^sub>2') \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
   and [simp]: "\<Gamma> \<turnstile> v : t \<Longrightarrow> x \<notin> domain\<^sub>s \<Gamma> \<Longrightarrow> extend\<^sub>e\<^sub>s x (t\<^sub>1', t\<^sub>2') \<Gamma> \<turnstile> v : t"
@@ -175,9 +157,10 @@ lemma [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Lon
     ultimately show ?case by simp
   qed (simp_all add: extend\<^sub>e\<^sub>s_def)
 
-lemma [simp]: "\<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2 \<Longrightarrow> x \<notin> domain\<^sub>s \<Gamma> \<Longrightarrow> extend\<^sub>v\<^sub>s x t' \<Gamma> \<turnstile> e : t\<^sub>1 \<rightarrow> t\<^sub>2"
-  and [simp]: "\<Gamma> \<turnstile> v : t \<Longrightarrow> x \<notin> domain\<^sub>s \<Gamma> \<Longrightarrow> extend\<^sub>v\<^sub>s x t' \<Gamma> \<turnstile> v : t"
-  by (induction \<Gamma> e t\<^sub>1 t\<^sub>2 and \<Gamma> v t rule: typecheck\<^sub>e_typecheck\<^sub>v.inducts) simp_all
+lemma unfold_tc_cts [simp]: "typecheck\<^sub>c\<^sub>t\<^sub>s \<Gamma> x ((y, ts) # cts) = Some F \<Longrightarrow> 
+  \<exists>ts' Fs. those (map (typecheck\<^sub>c\<^sub>t_arg \<Gamma> x) ts) = Some ts' \<and> 
+    typecheck\<^sub>c\<^sub>t\<^sub>s \<Gamma> x cts = Some Fs \<and> ctor_funct ts' \<Oplus> Fs = F"
+  by (auto simp add: typecheck\<^sub>c\<^sub>t\<^sub>s_def split: option.splits)
 
 (* static uniqueness *)
 
@@ -196,22 +179,11 @@ lemma unique_typechecking\<^sub>c\<^sub>e [elim]: "typecheck\<^sub>c\<^sub>e \<G
       by (induction \<Gamma> F "(x, ts) # cts" \<Gamma>\<^sub>e' rule: typecheck\<^sub>c\<^sub>e.induct) simp_all
   qed
 
-lemma unique_typechecking\<^sub>c\<^sub>v [elim]: "typecheck\<^sub>c\<^sub>v \<Gamma> F cts \<Gamma>\<^sub>v \<Longrightarrow> typecheck\<^sub>c\<^sub>v \<Gamma> F cts \<Gamma>\<^sub>v' \<Longrightarrow> \<Gamma>\<^sub>v = \<Gamma>\<^sub>v'"
-  proof (induction \<Gamma> F cts \<Gamma>\<^sub>v arbitrary: \<Gamma>\<^sub>v' rule: typecheck\<^sub>c\<^sub>v.induct)
-  case (tccv_nil \<Gamma> F)
-    thus ?case 
-      by (induction \<Gamma> F "[]::(name \<times> name list) list" \<Gamma>\<^sub>v' rule: typecheck\<^sub>c\<^sub>v.induct) simp_all
-  next case (tccv_cons \<Gamma> F cts \<Gamma>\<^sub>v ts ts' x)
-    with tccv_cons(4) show ?case 
-      by (induction \<Gamma> F "(x, ts) # cts" \<Gamma>\<^sub>v' rule: typecheck\<^sub>c\<^sub>v.induct) simp_all
-  qed
-
 lemma unique_typechecking\<^sub>d\<^sub>t [elim]: "typecheck\<^sub>d\<^sub>t \<Gamma> x cts \<Gamma>' \<Longrightarrow> typecheck\<^sub>d\<^sub>t \<Gamma> x cts \<Gamma>'' \<Longrightarrow> \<Gamma>' = \<Gamma>''"
   proof (induction \<Gamma> x cts \<Gamma>' rule: typecheck\<^sub>d\<^sub>t.induct)
-  case (tcdt \<Gamma> x cts F \<Gamma>\<^sub>e \<Gamma>\<^sub>v)
-    with tcdt(4) show ?case
-      by (induction \<Gamma> x cts \<Gamma>'' rule: typecheck\<^sub>d\<^sub>t.induct)
-         (simp, metis unique_typechecking\<^sub>c\<^sub>e unique_typechecking\<^sub>c\<^sub>v)
+  case (tcdt \<Gamma> x cts F \<Gamma>\<^sub>e)
+    with tcdt(3) show ?case
+      by (induction \<Gamma> x cts \<Gamma>'' rule: typecheck\<^sub>d\<^sub>t.induct) (simp, metis unique_typechecking\<^sub>c\<^sub>e)
   qed
 
 lemma [elim]: "\<Gamma> \<Turnstile> \<delta> : \<Gamma>' \<Longrightarrow> \<Gamma> \<Turnstile> \<delta> : \<Gamma>'' \<Longrightarrow> \<Gamma>' = \<Gamma>''"
@@ -219,9 +191,6 @@ lemma [elim]: "\<Gamma> \<Turnstile> \<delta> : \<Gamma>' \<Longrightarrow> \<Ga
   case (tcd_expr \<Gamma> e t\<^sub>1 t\<^sub>2 x)
     with tcd_expr(2) show ?case 
       by (induction \<Gamma> "ExprDecl x e" \<Gamma>'' rule: typecheck_decl.induct) (metis unique_typechecking\<^sub>e)
-  next case (tcd_val \<Gamma> v t x)
-    with tcd_val(2) show ?case
-      by (induction \<Gamma> "ValDecl x v" \<Gamma>'' rule: typecheck_decl.induct) (metis unique_typechecking\<^sub>v)
   next case (tcd_type \<Gamma> x cts \<Gamma>')
     with tcd_type(2) show ?case
       by (induction \<Gamma> "TypeDecl x cts" \<Gamma>'' rule: typecheck_decl.induct) 
