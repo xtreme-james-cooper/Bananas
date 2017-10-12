@@ -10,15 +10,15 @@ val FalseV = InrV UnitV
 
 (* derived combinators *)
 
-fun tuple_pair e1 e2 = Comp(Pairwise(e1, e2), Duplicate)
+fun tuple_pair e1 e2 = [Duplicate, Pairwise(e1, e2)]
 
-fun case_strip el er = Comp(Strip, Case(el, er))
+fun case_strip el er = [Case(el, er), Strip]
 
-fun predicate p = Comp(Case(Proj2, Proj2), Comp(Distribute, Comp(Pairwise(p, Identity), Duplicate)))
+fun predicate p = [Duplicate, Pairwise(p, []), Distribute, Case([Proj2], [Proj2])]
 
-val swap = tuple_pair Proj2 Proj1
+val swap = tuple_pair [Proj2] [Proj1]
 
-val distribute_right = Comp(Case(swap, swap), Comp(Distribute, swap))
+val distribute_right = swap @ [Distribute, Case(swap, swap)]
 
-fun if_expr p et ef = Comp(case_strip et ef, predicate p)
+fun if_expr p et ef = [predicate p, case_strip et ef]
 

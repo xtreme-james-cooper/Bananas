@@ -11,6 +11,10 @@ fun extend_e_static x t (gamma: static_environment) = {
     var_e_type = fn y => if x = y then SOME t else #var_e_type gamma y,
     var_t_type = #var_t_type gamma }
 
+fun extend_t_static x t (gamma: static_environment) = { 
+    var_e_type = #var_e_type gamma,
+    var_t_type = fn y => if x = y then SOME t else #var_t_type gamma y }
+
 fun combine_static (gamma1: static_environment) (gamma2: static_environment) = { 
     var_e_type = fn x => 
       case #var_e_type gamma1 x of NONE => #var_e_type gamma2 x | SOME e => SOME e, 
@@ -73,23 +77,17 @@ and inflate_funct (VAR _) = NONE
         option_bind (inflate_funct f2) (fn f2' => SOME (SumF(f1', f2')))) 
   | inflate_funct (CON _) = NONE
 
-fun assemble_constraints_expr (_: static_environment) x y free Identity = ([(x, y)], free)
-  | assemble_constraints_expr gamma _ y free (Const v) = assemble_constraints_val gamma y free v
-  | assemble_constraints_expr gamma x y free (Comp(f1, f2)) =
-      let val (cs1, free') = assemble_constraints_expr gamma (VAR free) y (free + 1) f1
-          val (cs2, free'') = assemble_constraints_expr gamma x (VAR free) free' f2
-      in (cs1 @ cs2, free'') 
-      end
+fun assemble_constraints_expr gamma _ y free (Const v) = assemble_constraints_val gamma y free v
   | assemble_constraints_expr _ x y free Proj1 = ([(x, CON(TIMES, [y, VAR free]))], free + 1)
   | assemble_constraints_expr _ x y free Proj2 = ([(x, CON(TIMES, [VAR free, y]))], free + 1)
   | assemble_constraints_expr _ x y free Duplicate = ([(y, CON (TIMES, [x, x]))], free)
   | assemble_constraints_expr gamma x y free (Pairwise(f1, f2)) = 
       let val a = VAR free
           val b = VAR (free + 1) 
-          val (cs1, free') = assemble_constraints_expr gamma a b (free + 2) f1
+          val (cs1, free') = assemble_constraints_exprs gamma a b (free + 2) f1
           val c = VAR free'
           val d = VAR (free' + 1) 
-          val (cs2, free'') = assemble_constraints_expr gamma c d (free' + 2) f2
+          val (cs2, free'') = assemble_constraints_exprs gamma c d (free' + 2) f2
       in ((x, CON(TIMES, [a, c])) :: (y, CON(TIMES, [b, d])) :: cs1 @ cs2, free'') 
       end
   | assemble_constraints_expr _ x y free Injl = ([(y, CON(PLUS, [x, VAR free]))], free + 1)
@@ -98,10 +96,10 @@ fun assemble_constraints_expr (_: static_environment) x y free Identity = ([(x, 
   | assemble_constraints_expr gamma x y free (Case (f1, f2)) =
       let val a = VAR free
           val b = VAR (free + 1) 
-          val (cs1, free') = assemble_constraints_expr gamma a b (free + 2) f1
+          val (cs1, free') = assemble_constraints_exprs gamma a b (free + 2) f1
           val c = VAR free' 
           val d = VAR (free' + 1) 
-          val (cs2, free'') = assemble_constraints_expr gamma c d (free' + 2) f2
+          val (cs2, free'') = assemble_constraints_exprs gamma c d (free' + 2) f2
       in ((x, CON(PLUS, [a, c])) :: (y, CON(PLUS, [b, d])) :: cs1 @ cs2, free'')
       end
   | assemble_constraints_expr _ x y free Distribute = 
@@ -116,10 +114,10 @@ fun assemble_constraints_expr (_: static_environment) x y free Identity = ([(x, 
   | assemble_constraints_expr gamma x y free (Arrow (f1, f2)) =
       let val a = VAR free
           val b = VAR (free + 1) 
-          val (cs1, free') = assemble_constraints_expr gamma a b (free + 1) f1
+          val (cs1, free') = assemble_constraints_exprs gamma a b (free + 1) f1
           val c = VAR free' 
           val d = VAR (free' + 1) 
-          val (cs2, free'') = assemble_constraints_expr gamma c d (free' + 2) f2
+          val (cs2, free'') = assemble_constraints_exprs gamma c d (free' + 2) f2
       in ((x, CON(ARROW, [b, c])) :: (y, CON(PLUS, [a, d])) :: cs1 @ cs2, free'')
       end
   | assemble_constraints_expr gamma x y free (Inj n) = (case #var_t_type gamma n of 
@@ -132,19 +130,25 @@ fun assemble_constraints_expr (_: static_environment) x y free Identity = ([(x, 
       | NONE => ([(CON(UNIT, []), CON(IDF, []))], free))
   | assemble_constraints_expr gamma x y free (Cata(f, n)) = (case #var_t_type gamma n of 
         SOME F => 
-          let val (cs, free') = assemble_constraints_expr gamma (apply_functor_flat y F) y free f
+          let val (cs, free') = assemble_constraints_exprs gamma (apply_functor_flat y F) y free f
           in ((x, CON(MU, [flatten_funct F])) :: cs, free')
           end
       | NONE => ([(CON(UNIT, []), CON(IDF, []))], free))
   | assemble_constraints_expr gamma x y free (Ana(f, n)) = (case #var_t_type gamma n of 
         SOME F => 
-          let val (cs, free') = assemble_constraints_expr gamma x (apply_functor_flat x F) free f
+          let val (cs, free') = assemble_constraints_exprs gamma x (apply_functor_flat x F) free f
           in ((y, CON(MU, [flatten_funct F])) :: cs, free')
           end
       | NONE => ([(CON(UNIT, []), CON(IDF, []))], free))
   | assemble_constraints_expr gamma x y free (Var z) = (case #var_e_type gamma z of 
         SOME (t1, t2) => ([(x, flatten_type t1), (y, flatten_type t2)], free)
       | NONE => ([(CON(UNIT, []), CON(IDF, []))], free))
+and assemble_constraints_exprs (_: static_environment) x y free [] = ([(x, y)], free)
+  | assemble_constraints_exprs gamma x y free (f1 :: f2) =
+      let val (cs1, free') = assemble_constraints_expr gamma (VAR free) y (free + 1) f1
+          val (cs2, free'') = assemble_constraints_exprs gamma x (VAR free) free' f2
+      in (cs1 @ cs2, free'') 
+      end
 
 and assemble_constraints_val _     x free UnitV = 
       ([(x, CON(UNIT, []))], free)
@@ -162,7 +166,7 @@ and assemble_constraints_val _     x free UnitV =
       in ((x, CON(PLUS, [VAR free', VAR free])) :: cs, free' + 1)
       end
   | assemble_constraints_val gamma x free (FunV f) =
-      let val (cs, free') = assemble_constraints_expr gamma (VAR free) (VAR (free + 1)) (free + 2) f
+      let val (cs, free') = assemble_constraints_exprs gamma (VAR free) (VAR (free + 1)) (free + 2) f
       in ((x, CON(ARROW, [VAR free, VAR (free + 1)])) :: cs, free')
       end
   | assemble_constraints_val gamma x free (InjV(n, v)) = (case #var_t_type gamma n of 
@@ -174,7 +178,7 @@ and assemble_constraints_val _     x free UnitV =
       | NONE => ([(CON(UNIT, []), CON(IDF, []))], free))
 
 fun typecheck_expr gamma e = 
-      option_bind (unify' (#1 (assemble_constraints_expr gamma (VAR 0) (VAR 1) 2 e))) (fn phi => 
+      option_bind (unify' (#1 (assemble_constraints_exprs gamma (VAR 0) (VAR 1) 2 e))) (fn phi => 
         option_bind (inflate_type (subst_sub phi 0)) (fn t1 => 
           option_bind (inflate_type (subst_sub phi 1))  (fn t2 => SOME (t1, t2)))) 
        

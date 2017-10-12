@@ -16,23 +16,23 @@ and funct =
 | SumF of funct * funct
 
 datatype expr = 
-  Identity | Const of vall | Comp of expr * expr
-| Proj1 | Proj2 | Duplicate | Pairwise of expr * expr
-| Injl | Injr | Strip | Case of expr * expr
+  Const of vall
+| Proj1 | Proj2 | Duplicate | Pairwise of expr list * expr list
+| Injl | Injr | Strip | Case of expr list * expr list
 | Distribute
-| Apply | Arrow of expr * expr
+| Apply | Arrow of expr list * expr list
 | Inj of name | Outj of name
-| Cata of expr * name | Ana of expr * name
+| Cata of expr list * name | Ana of expr list * name
 | Var of name
 and vall = 
   UnitV
 | PairV of vall * vall
 | InlV of vall | InrV of vall
-| FunV of expr
+| FunV of expr list
 | InjV of name * vall 
 
 datatype decl = 
   TypeDecl of name * (name * name list) list
-| ExprDecl of name * expr
+| ExprDecl of name * expr list
 
-datatype prog = Prog of decl list * expr * vall
+datatype prog = Prog of decl list * expr list * vall
