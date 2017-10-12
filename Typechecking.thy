@@ -30,6 +30,7 @@ and inflate_funct :: "flat_type expression \<Rightarrow> funct option" where
   "inflate_type (VAR x) = Some (Poly x)"
 | "inflate_type (CON c []) = (case c of
       UNIT \<Rightarrow> Some \<one> 
+    | VOID \<Rightarrow> Some \<zero> 
     | _ \<Rightarrow> None)"
 | "inflate_type (CON c [F]) = 
     Option.bind (inflate_funct F) (\<lambda>F'. 
@@ -162,7 +163,7 @@ definition algorithmic_typecheck\<^sub>c\<^sub>v :: "funct \<Rightarrow> (name \
 definition algorithmic_typecheck\<^sub>d\<^sub>t :: "static_environment \<Rightarrow> name \<Rightarrow> (name \<times> name list) list \<Rightarrow> 
     static_environment option" where
   "algorithmic_typecheck\<^sub>d\<^sub>t \<Gamma> n cts = (case typecheck\<^sub>c\<^sub>t\<^sub>s \<Gamma> n cts of
-      Some F \<Rightarrow> Some \<lparr> var\<^sub>e_type = algorithmic_typecheck\<^sub>c\<^sub>e \<Gamma> F cts, 
+      Some F \<Rightarrow> Some \<lparr> var\<^sub>e_type = algorithmic_typecheck\<^sub>c\<^sub>e (\<Gamma>\<lparr>var\<^sub>t_type = [n \<mapsto> F] \<rparr>) F cts, 
                        var\<^sub>v_type = typecheck\<^sub>c\<^sub>v F cts, 
                        var\<^sub>t_type = [n \<mapsto> F] \<rparr>
     | None \<Rightarrow> None)"

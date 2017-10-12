@@ -50,6 +50,7 @@ fun apply_functor_flat t Id              = t
 
 fun inflate_type (VAR x) = SOME (Poly x)
   | inflate_type (CON(UNIT, [])) = SOME Unit
+  | inflate_type (CON(VOID, [])) = SOME Void
   | inflate_type (CON(MU, [F])) = option_bind (inflate_funct F) (fn F' => SOME (Fix F'))  
   | inflate_type (CON(TIMES, [t1, t2])) = 
       option_bind (inflate_type t1) (fn t1' =>
@@ -145,8 +146,8 @@ fun assemble_constraints_expr gamma _ y free (Const v) = assemble_constraints_va
       | NONE => ([(CON(UNIT, []), CON(IDF, []))], free))
 and assemble_constraints_exprs (_: static_environment) x y free [] = ([(x, y)], free)
   | assemble_constraints_exprs gamma x y free (f1 :: f2) =
-      let val (cs1, free') = assemble_constraints_expr gamma (VAR free) y (free + 1) f1
-          val (cs2, free'') = assemble_constraints_exprs gamma x (VAR free) free' f2
+      let val (cs1, free') = assemble_constraints_expr gamma x (VAR free) (free + 1) f1
+          val (cs2, free'') = assemble_constraints_exprs gamma (VAR free) y free' f2
       in (cs1 @ cs2, free'') 
       end
 
@@ -211,7 +212,7 @@ fun typecheck_ctors gamma x cts = Option.map adt_type (those (map (typecheck_cto
 
 fun typecheck_typedef gamma n cts = case typecheck_ctors gamma n cts of
         SOME F => SOME { 
-          var_e_type = typecheck_ctor_expr gamma F cts, 
+          var_e_type = typecheck_ctor_expr (extend_t_static n F gamma) F cts, 
           var_t_type = fn x => if x = n then SOME F else NONE }
       | NONE => NONE
 
