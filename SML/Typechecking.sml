@@ -1,4 +1,6 @@
 
+exception MissingType of name
+exception MissingExpr of name
 
 type static_environment = {
   var_e_type : name -> (typ * typ) option,
@@ -124,26 +126,27 @@ fun assemble_constraints_expr gamma _ y free (Const v) = assemble_constraints_va
   | assemble_constraints_expr gamma x y free (Inj n) = (case #var_t_type gamma n of 
         SOME F => 
           ([(x, flatten_type (apply_functor_type (Fix F) F)), (y, flatten_type (Fix F))], free)
-      | NONE => ([(CON(UNIT, []), CON(IDF, []))], free))
+      | NONE => raise MissingType n)
   | assemble_constraints_expr gamma x y free (Outj n) = (case #var_t_type gamma n of 
         SOME F => 
           ([(x, flatten_type (Fix F)), (y, flatten_type (apply_functor_type (Fix F) F))], free)
-      | NONE => ([(CON(UNIT, []), CON(IDF, []))], free))
+      | NONE => raise MissingType n)
   | assemble_constraints_expr gamma x y free (Cata(f, n)) = (case #var_t_type gamma n of 
         SOME F => 
           let val (cs, free') = assemble_constraints_exprs gamma (apply_functor_flat y F) y free f
           in ((x, CON(MU, [flatten_funct F])) :: cs, free')
           end
-      | NONE => ([(CON(UNIT, []), CON(IDF, []))], free))
+      | NONE => raise MissingType n)
   | assemble_constraints_expr gamma x y free (Ana(f, n)) = (case #var_t_type gamma n of 
         SOME F => 
           let val (cs, free') = assemble_constraints_exprs gamma x (apply_functor_flat x F) free f
           in ((y, CON(MU, [flatten_funct F])) :: cs, free')
           end
-      | NONE => ([(CON(UNIT, []), CON(IDF, []))], free))
+      | NONE => raise MissingType n)
   | assemble_constraints_expr gamma x y free (Var z) = (case #var_e_type gamma z of 
         SOME (t1, t2) => ([(x, flatten_type t1), (y, flatten_type t2)], free)
-      | NONE => ([(CON(UNIT, []), CON(IDF, []))], free))
+      | NONE => raise MissingExpr z)
+
 and assemble_constraints_exprs (_: static_environment) x y free [] = ([(x, y)], free)
   | assemble_constraints_exprs gamma x y free (f1 :: f2) =
       let val (cs1, free') = assemble_constraints_expr gamma x (VAR free) (free + 1) f1
@@ -176,7 +179,7 @@ and assemble_constraints_val _     x free UnitV =
               val (cs, free') = assemble_constraints_val gamma ff free v
           in ((x, flatten_type (Fix F)) :: cs, free')
           end
-      | NONE => ([(CON(UNIT, []), CON(IDF, []))], free))
+      | NONE => raise MissingType n)
 
 fun typecheck_expr gamma e = 
       option_bind (unify' (#1 (assemble_constraints_exprs gamma (VAR 0) (VAR 1) 2 e))) (fn phi => 
@@ -227,5 +230,5 @@ fun typecheck_prog (Prog(lam, e, v)) =
     in option_bind gamma (fn gamma =>
       option_bind (typecheck_expr gamma e) (fn (t1, t2) =>
         option_bind (typecheck_val gamma v) (fn t3 =>
-          if t1 = t3 then SOME t2 else NONE)))
+          if isSome (unify (flatten_type t1) (flatten_type t3)) then SOME t2 else NONE)))
     end

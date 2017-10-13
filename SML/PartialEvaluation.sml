@@ -81,10 +81,12 @@ fun assemble_context' gamma (TypeDecl(x, cts)) = {
       var_e_bind = fn y => if x = y then SOME e else NONE, 
       var_t_bind = fn _ => NONE }
 
-fun assemble_context [] = (empty_static, empty_dynamic)
-  | assemble_context (del :: lam) = 
-      let val (gam, lam) = assemble_context lam
-      in (valOf (typecheck_def gam del), combine_dynamic (assemble_context' gam del) lam)
-      end
+exception AssemblyFailure of static_environment * decl
 
-fun partial_eval_prog (Prog(lam, e, v)) = partial_eval (#2 (assemble_context lam)) e v
+fun assemble_context gam lam [] = (gam, lam)
+  | assemble_context gam lam (del :: dels) = case typecheck_def gam del of
+        SOME gam' => assemble_context gam' (combine_dynamic (assemble_context' gam del) lam) dels
+      | NONE => raise AssemblyFailure(gam, del)
+
+fun partial_eval_prog (Prog(lam, e, v)) = 
+      partial_eval (#2 (assemble_context empty_static empty_dynamic lam)) e v
