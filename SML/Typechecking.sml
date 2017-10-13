@@ -1,30 +1,4 @@
 
-exception MissingType of name
-exception MissingExpr of name
-
-type static_environment = {
-  var_e_type : name -> (typ * typ),
-  var_t_type : name -> funct
-}
-
-val empty_static = { 
-      var_e_type = fn x => raise MissingExpr x, 
-      var_t_type = fn x => raise MissingType x }
-
-fun extend_e_static x t (gamma: static_environment) = { 
-    var_e_type = fn y => if x = y then t else #var_e_type gamma y,
-    var_t_type = #var_t_type gamma }
-
-fun extend_t_static x t (gamma: static_environment) = { 
-    var_e_type = #var_e_type gamma,
-    var_t_type = fn y => if x = y then t else #var_t_type gamma y }
-
-fun combine_static (gamma1: static_environment) (gamma2: static_environment) = { 
-    var_e_type = fn x => 
-      #var_e_type gamma1 x handle (MissingExpr _) => #var_e_type gamma2 x, 
-    var_t_type = fn x => 
-      #var_t_type gamma1 x handle (MissingType _) => #var_t_type gamma2 x }
-
 fun apply_functor_type t Id = t
   | apply_functor_type _ (K t') = t'
   | apply_functor_type t (ProdF(f1, f2)) = Prod(apply_functor_type t f1, apply_functor_type t f2)
@@ -53,7 +27,7 @@ fun apply_functor_flat t Id              = t
       CON(PLUS, [apply_functor_flat t f1, apply_functor_flat t f2])
 
 exception TypeInflationError of flat_type expression
-exception UnificationError of (flat_type equation) list
+exception UnificationError of (typ * typ) list
 
 fun inflate_type (VAR x) = Poly x
   | inflate_type (CON(UNIT, [])) = Unit
@@ -70,7 +44,15 @@ and inflate_funct (CON(IDF, [])) = Id
   | inflate_funct (CON(PLUSF, [f1, f2])) = SumF(inflate_funct f1, inflate_funct f2)
   | inflate_funct ft = raise TypeInflationError ft
 
-fun assemble_constraints_expr gamma _ y free (Const v) = assemble_constraints_val gamma y free v
+fun assemble_constraints_val_desc gamma x free (ValDesc(n, vs)) =
+      let val (ts, t) = var_v_type gamma n
+      in foldr (fn ((t, v), (cs1, free')) => 
+            let val (cs2, free'') = assemble_constraints_val_desc gamma (flatten_type t) free' v
+            in (cs1 @ cs2, free'') 
+            end) ([(x, flatten_type t)], free) (zip ts vs)
+      end
+
+fun assemble_constraints_expr gamma _ y free (Const v) = assemble_constraints_val_desc gamma y free v
   | assemble_constraints_expr _ x y free Proj1 = ([(x, CON(TIMES, [y, VAR free]))], free + 1)
   | assemble_constraints_expr _ x y free Proj2 = ([(x, CON(TIMES, [VAR free, y]))], free + 1)
   | assemble_constraints_expr _ x y free Duplicate = ([(y, CON (TIMES, [x, x]))], free)
@@ -114,25 +96,25 @@ fun assemble_constraints_expr gamma _ y free (Const v) = assemble_constraints_va
       in ((x, CON(ARROW, [b, c])) :: (y, CON(PLUS, [a, d])) :: cs1 @ cs2, free'')
       end
   | assemble_constraints_expr gamma x y free (Inj n) = 
-      let val F = #var_t_type gamma n
+      let val F = var_t_type gamma n
       in ([(x, flatten_type (apply_functor_type (Fix F) F)), (y, flatten_type (Fix F))], free)
       end
   | assemble_constraints_expr gamma x y free (Outj n) = 
-      let val F = #var_t_type gamma n 
+      let val F = var_t_type gamma n
       in ([(x, flatten_type (Fix F)), (y, flatten_type (apply_functor_type (Fix F) F))], free)
       end
   | assemble_constraints_expr gamma x y free (Cata(f, n)) =
-      let val F = #var_t_type gamma n
+      let val F = var_t_type gamma n
           val (cs, free') = assemble_constraints_exprs gamma (apply_functor_flat y F) y free f
       in ((x, CON(MU, [flatten_funct F])) :: cs, free')
       end
   | assemble_constraints_expr gamma x y free (Ana(f, n)) =
-      let val F = #var_t_type gamma n
+      let val F = var_t_type gamma n
           val (cs, free') = assemble_constraints_exprs gamma x (apply_functor_flat x F) free f
       in ((y, CON(MU, [flatten_funct F])) :: cs, free')
       end
   | assemble_constraints_expr gamma x y free (Var z) = 
-      let val (t1, t2) = #var_e_type gamma z
+      let val (t1, t2) = var_e_type gamma z
       in ([(x, flatten_type t1), (y, flatten_type t2)], free)
       end
 
@@ -143,72 +125,40 @@ and assemble_constraints_exprs (_: static_environment) x y free [] = ([(x, y)], 
       in (cs1 @ cs2, free'') 
       end
 
-and assemble_constraints_val _     x free UnitV = 
-      ([(x, CON(UNIT, []))], free)
-  | assemble_constraints_val gamma x free (PairV(v1, v2)) =
-      let val (cs1, free') = assemble_constraints_val gamma (VAR free) (free + 1) v1
-          val  (cs2, free'') = assemble_constraints_val gamma (VAR free') (free' + 1) v2
-      in ((x, CON(TIMES, [VAR free, VAR free'])) :: cs1 @ cs2, free'')
-      end
-  | assemble_constraints_val gamma x free (InlV v) =
-      let val (cs, free') = assemble_constraints_val gamma (VAR free) (free + 1) v
-      in ((x, CON(PLUS, [VAR free, VAR free'])) :: cs, free' + 1)
-      end
-  | assemble_constraints_val gamma x free (InrV v) =
-      let val (cs, free') = assemble_constraints_val gamma (VAR free) (free + 1) v
-      in ((x, CON(PLUS, [VAR free', VAR free])) :: cs, free' + 1)
-      end
-  | assemble_constraints_val gamma x free (FunV f) =
-      let val (cs, free') = assemble_constraints_exprs gamma (VAR free) (VAR (free + 1)) (free + 2) f
-      in ((x, CON(ARROW, [VAR free, VAR (free + 1)])) :: cs, free')
-      end
-  | assemble_constraints_val gamma x free (InjV(n, v)) =
-      let val F = #var_t_type gamma n
-          val ff = flatten_type (apply_functor_type (Fix F) F)
-          val (cs, free') = assemble_constraints_val gamma ff free v
-      in ((x, flatten_type (Fix F)) :: cs, free')
-      end
-
 fun typecheck_expr gamma e = 
       let val eqns = #1 (assemble_constraints_exprs gamma (VAR 0) (VAR 1) 2 e) 
       in case unify' eqns of
           SOME phi => (inflate_type (subst_sub phi 0), inflate_type (subst_sub phi 1))
-        | NONE => raise UnificationError eqns
+        | NONE => raise UnificationError (map (fn (a, b) => (inflate_type a, inflate_type b)) eqns)
       end
        
 fun typecheck_val gamma v = 
-      let val eqns = #1 (assemble_constraints_val gamma (VAR 0) 1 v) 
+      let val eqns = #1 (assemble_constraints_val_desc gamma (VAR 0) 1 v) 
       in case unify' eqns of
           SOME phi => inflate_type (subst_sub phi 0)
-        | NONE => raise UnificationError eqns
+        | NONE => raise UnificationError (map (fn (a, b) => (inflate_type a, inflate_type b)) eqns)
       end
       
-fun typecheck_ctor_expr _     _ []               y = raise MissingExpr y
-  | typecheck_ctor_expr gamma F ((x, ts) :: cts) y = 
-      if y = x 
-      then (foldr Prod Unit (map (Fix o #var_t_type gamma) ts), Fix F) 
-      else typecheck_ctor_expr gamma F cts y
+fun typecheck_ctor_expr gamma F cts = 
+      map (fn (x, ts) => (x, (foldr Prod Unit (map (Fix o var_t_type gamma) ts), Fix F))) cts
 
-fun typecheck_ctor_val F (cts: (name * name list) list) x = 
-      if List.exists (fn y => x = y) (map #1 cts) then Fix F else raise MissingExpr x
+fun typecheck_ctor_arg gamma tn t = if t = tn then Id else K (Fix (var_t_type gamma t))
 
-fun typecheck_ctor_arg gamma tn t = if t = tn then Id else K (Fix (#var_t_type gamma t))
+fun typecheck_ctor gamma tn (_, ts) = foldr ProdF (K Unit) (map (typecheck_ctor_arg gamma tn) ts)
 
-fun ctor_funct Fs = foldr ProdF (K Unit) Fs
+fun typecheck_ctors gamma x cts = foldr SumF (K Void) (map (typecheck_ctor gamma x) cts)
 
-fun typecheck_ctor gamma tn (_, ts) = ctor_funct (map (typecheck_ctor_arg gamma tn) ts)
-
-fun adt_type Fs = foldr SumF (K Void) Fs
-
-fun typecheck_ctors gamma x cts = adt_type (map (typecheck_ctor gamma x) cts)
+fun typecheck_ctor_val gamma F cts = 
+      map (fn (x, xs) => (x, (map (Fix o var_t_type gamma) xs, Fix F))) cts
 
 fun typecheck_typedef gamma n cts = 
       let val F = typecheck_ctors gamma n cts
       in { var_e_type = typecheck_ctor_expr (extend_t_static n F gamma) F cts, 
-           var_t_type = fn x => if x = n then F else raise MissingType x }
+           var_v_type = typecheck_ctor_val (extend_t_static n F gamma) F cts,
+           var_t_type = [(n, F)] }
       end
 
-fun typecheck_def gamma (TypeDecl(x, cts)) = typecheck_typedef gamma x cts
+fun typecheck_def gamma (TypeDecl(x, cts)) = combine_static gamma (typecheck_typedef gamma x cts)
   | typecheck_def gamma (ExprDecl(x, e)) = 
       let val (t1, t2) = typecheck_expr gamma e
       in extend_e_static x (t1, t2) gamma
@@ -220,5 +170,5 @@ fun typecheck_prog (Prog(lam, e, v)) =
         val t3 = typecheck_val gamma v
     in case unify (flatten_type t1) (flatten_type t3) of
           SOME _ => t2
-        | NONE => raise UnificationError [(flatten_type t1, flatten_type t3)]
+        | NONE => raise UnificationError [(t1, t3)]
     end

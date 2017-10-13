@@ -5,7 +5,7 @@ val Bool = Fix(ProdF(K Unit, K Unit))
 
 val TrueV = InjV("Bool", InlV UnitV)
 
-val FalseV = InjV("Bool", InrV UnitV)
+val FalseV = InjV("Bool", InrV (InlV UnitV))
 
 (* derived combinators *)
 
