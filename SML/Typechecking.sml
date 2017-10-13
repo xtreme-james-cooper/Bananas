@@ -139,14 +139,15 @@ fun typecheck_val gamma v =
         | NONE => raise UnificationError (map (fn (a, b) => (inflate_type a, inflate_type b)) eqns)
       end
       
-fun typecheck_ctor_expr gamma F cts = 
-      map (fn (x, ts) => (x, (foldr Prod Unit (map (Fix o var_t_type gamma) ts), Fix F))) cts
+fun typecheck_ctor_expr gamma F cts = map (fn (x, ts) => 
+      (x, (if ts = [] then Unit else foldr1 Prod (map (Fix o var_t_type gamma) ts), Fix F))) cts
 
 fun typecheck_ctor_arg gamma tn t = if t = tn then Id else K (Fix (var_t_type gamma t))
 
-fun typecheck_ctor gamma tn (_, ts) = foldr ProdF (K Unit) (map (typecheck_ctor_arg gamma tn) ts)
+fun typecheck_ctor _     _  (_, []) = K Unit
+  | typecheck_ctor gamma tn (_, ts) = foldr1 ProdF (map (typecheck_ctor_arg gamma tn) ts)
 
-fun typecheck_ctors gamma x cts = foldr SumF (K Void) (map (typecheck_ctor gamma x) cts)
+fun typecheck_ctors gamma x cts = foldr1 SumF (map (typecheck_ctor gamma x) cts)
 
 fun typecheck_ctor_val gamma F cts = 
       map (fn (x, xs) => (x, (map (Fix o var_t_type gamma) xs, Fix F))) cts

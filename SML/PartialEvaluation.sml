@@ -44,22 +44,21 @@ fun partial_evaluation lam (Const v1) _ = partial_evalutationV lam v1
 and partial_eval _ [] v = v
   | partial_eval lam (f :: g) v = partial_eval lam g (partial_evaluation lam f v)
 
-fun right_inject 0 = [Injl]
-  | right_inject x = right_inject (x - 1) @ [Injr]
+fun assemble_context_ctor_expr [] = raise Empty 
+  | assemble_context_ctor_expr [(x, _)] = [(x, [])]
+  | assemble_context_ctor_expr ((x, _) :: cts) = 
+      (x, [Injl]) :: map (fn (x, e) => (x, e @ [Injr])) (assemble_context_ctor_expr cts)
 
-fun right_injectV 0 v = InlV v
-  | right_injectV x v = InrV (right_injectV (x - 1) v)
-
-fun assemble_context_ctor_expr n cts = 
-      mapWithIndex (fn (depth, (x, _)) => (x, right_inject depth @ [Inj n])) cts
-
-fun assemble_context_ctor_val n cts = 
-      mapWithIndex (fn (depth, (x, _)) => 
-        (x, fn vs => InjV (n, right_injectV depth (foldr PairV UnitV vs)))) cts
+fun assemble_context_ctor_val [] = raise Empty 
+  | assemble_context_ctor_val [(x, _)] = 
+      [(x, fn vs => if length vs = 0 then UnitV else foldr1 PairV vs)]
+  | assemble_context_ctor_val ((x, _) :: cts) = 
+      (x, fn vs => InlV (if length vs = 0 then UnitV else foldr1 PairV vs)) :: 
+        map (fn (x, v) => (x, InrV o v)) (assemble_context_ctor_val cts)
 
 fun assemble_context' gamma (TypeDecl(x, cts)) = {
-      var_e_bind = assemble_context_ctor_expr x cts, 
-      var_v_bind = assemble_context_ctor_val x cts,
+      var_e_bind = map (fn (n, e) => (n, e @ [Inj x])) (assemble_context_ctor_expr cts), 
+      var_v_bind = map (fn (n, v) => (n, fn vs => InjV(x, v vs))) (assemble_context_ctor_val cts),
       var_t_bind = [(x, typecheck_ctors gamma x cts)] } 
   | assemble_context' _ (ExprDecl(x, e)) = { 
       var_e_bind = [(x, e)], 

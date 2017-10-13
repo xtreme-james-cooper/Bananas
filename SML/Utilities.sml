@@ -18,3 +18,7 @@ fun mapWithIndex' _ _ []        = []
   | mapWithIndex' n f (b :: bs) = f (n, b) :: mapWithIndex' (n + 1) f bs
 
 fun mapWithIndex f bs = mapWithIndex' 0 f bs
+
+fun foldr1 _ [] = raise List.Empty
+  | foldr1 _ [b] = b
+  | foldr1 f (b :: bs) = f (b, foldr1 f bs)

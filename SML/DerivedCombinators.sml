@@ -1,12 +1,4 @@
 
-(* derived types *)
-
-val Bool = Fix(ProdF(K Unit, K Unit))
-
-val TrueV = InjV("Bool", InlV UnitV)
-
-val FalseV = InjV("Bool", InrV (InlV UnitV))
-
 (* derived combinators *)
 
 fun tuple_pair e1 e2 = [Duplicate, Pairwise(e1, e2)]
