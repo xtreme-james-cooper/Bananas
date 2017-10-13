@@ -1,9 +1,7 @@
 
 
-fun those [] = SOME []
-  | those (NONE :: _) = NONE  
-  | those (SOME b :: bs) = case those bs of
-        SOME bs' => SOME (b :: bs')
-      | NONE => NONE
+fun those [] = []
+  | those (NONE :: _) = raise Option.Option
+  | those (SOME b :: bs) = b :: those bs
 
 fun option_bind x f = Option.mapPartial f x
