@@ -33,13 +33,22 @@ datatype expr =
   Proj1 (* \<pi>\<^sub>1 *) | Proj2 (* \<pi>\<^sub>2 *) | Duplicate (* \<Theta> *) | Pairwise of expr list * expr list (* f \<parallel> g *)
 | Injl (* \<iota>\<^sub>l *) | Injr (* \<iota>\<^sub>r *) | Strip (* \<Xi> *) | Case of expr list * expr list (* f \<bar> g *)
 | Distribute (* \<sqsupset> *)
-| Apply (* $ *) | Arrow of expr list * expr list (* g \<leftarrow> f *)
+| Apply (* $ *) | Fun of expr list (* \<langle> f \<rangle> *) | Arrow of expr list * expr list (* g \<leftarrow> f *) 
+| Uncurry of expr list (* \<flat> f *) | Curry of expr list (* \<sharp> f *)
 | Inj of name (* \<succ>\<^sub>F *) | Outj of name (* \<prec>\<^sub>F *)
 | Cata of expr list * name (* \<lparr> f \<rparr>\<^sub>F *) | Ana of expr list * name (* \<lbrakk> f \<rbrakk>\<^sub>F *)
-| Var of name | Const of val_description
+| Var of name | Const of val_description | ConstV of vall (* last not available to users! *)
+
+(* actual values never need to be depicted to the user! They're internal only *)
+and vall = 
+  UnitV
+| PairV of vall * vall
+| InlV of vall | InrV of vall
+| FunV of expr list
+| InjV of name * vall 
 
 (* the result of applying a functor to an expr, e \<star> F 
-   for example, \<pi>\<^sub>1 \<star> ListF = \<pi>\<^sub>1 \<star> (K \<one> \<Oplus> (K A \<Otimes> Id)) = [] \<bar> [[] \<parallel> \<pi>\<^sub>1] *) 
+   for example, \<pi>\<^sub>1 \<star> ListF = \<pi>\<^sub>1 \<star> (K \<one> \<Oplus> (K A \<Otimes> Id)) = [] \<bar> [[] \<parallel> [\<pi>\<^sub>1]] *) 
 fun apply_functor_expr e Id = [e]
   | apply_functor_expr _ (K _) = []
   | apply_functor_expr e (ProdF(f1, f2)) = [Pairwise (apply_functor_expr e f1, apply_functor_expr e f2)]
@@ -51,20 +60,15 @@ fun tuple_pair e1 e2 = [Duplicate, Pairwise(e1, e2)] (* f \<triangle> g *)
 fun case_strip el er = [Case(el, er), Strip] (* f \<nabla> g *)
 fun predicate p = [Duplicate, Pairwise(p @ [Outj "Bool"], []), Distribute, Case([Proj2], [Proj2])] (* p? *)
 val swap = tuple_pair [Proj2] [Proj1] (* \<bowtie> *)
-val distribute_right = swap @ [Distribute, Case(swap, swap)] (* \<sqsubset>  *)
+val distribute_right = swap @ [Distribute, Case(swap, swap)] (* \<sqsubset> *)
+val assoc_left = [Duplicate, Pairwise([Proj1, Proj1], [Pairwise([Proj2], [])])] (* \<supset> *)
+val assoc_right = [Duplicate, Pairwise([Pairwise([], [Proj1])], [Proj2, Proj2])] (* \<subset> *)
 fun if_expr p et ef = predicate p @ case_strip et ef (* et \<triangleleft> p \<triangleright> ef *)
-
-(* actual values never need to be depicted to the user! They're internal only *)
-datatype vall = 
-  UnitV
-| PairV of vall * vall
-| InlV of vall | InrV of vall
-| FunV of expr list
-| InjV of name * vall 
 
 (* declarations for (haskell-style sum-of-products) types and combinator chain expressions *)
 datatype decl = 
   TypeDecl of name * (name * name list) list
+| ValDecl of name * val_description
 | ExprDecl of name * expr list
 
 (* top-level program *)

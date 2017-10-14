@@ -5,25 +5,59 @@
 
 datatype flat_type = UNIT | VOID | TIMES | PLUS | ARROW | MU | IDF | CONSTF | TIMESF | PLUSF
 
-fun flatten_type Unit           = CON(UNIT, []) 
-  | flatten_type Void           = CON(VOID, [])
-  | flatten_type (Poly n)       = VAR n (* polymorphic type variables are turned into unification variables *)
-  | flatten_type (Prod(t1, t2)) = CON(TIMES, [flatten_type t1, flatten_type t2])
-  | flatten_type (Sum(t1, t2))  = CON(PLUS, [flatten_type t1, flatten_type t2])
-  | flatten_type (Func(t1, t2)) = CON(ARROW, [flatten_type t1, flatten_type t2])
-  | flatten_type (Fix F)        = CON(MU, [flatten_funct F])
+fun flatten_type free Unit           = (CON(UNIT, []), free)
+  | flatten_type free Void           = (CON(VOID, []), free)
+(* polymorphic type variables are turned into fresh unification variables 
+   but consistently, hence our somewhat wasteful way of generating new variables from a fresh count *)
+  | flatten_type free (Poly n)       = (VAR(free + n), free + n + 1) 
+  | flatten_type free (Prod(t1, t2)) = 
+      let val (t1', free1) = flatten_type free t1 
+          val (t2', free2) = flatten_type free t2
+      in (CON(TIMES, [t1', t2']), Int.max(free1, free2))
+      end
+  | flatten_type free (Sum(t1, t2))  = 
+      let val (t1', free1) = flatten_type free t1 
+          val (t2', free2) = flatten_type free t2
+      in (CON(PLUS, [t1', t2']), Int.max(free1, free2))
+      end
+  | flatten_type free (Func(t1, t2)) = 
+      let val (t1', free1) = flatten_type free t1 
+          val (t2', free2) = flatten_type free t2
+      in (CON(ARROW, [t1', t2']), Int.max(free1, free2))
+      end
+  | flatten_type free (Fix F)        = 
+      let val (f', free1) = flatten_funct free F 
+      in (CON(MU, [f']), free1)
+      end
 
-and flatten_funct Id              = CON(IDF, [])
-  | flatten_funct (K t)           = CON(CONSTF, [flatten_type t])
-  | flatten_funct (ProdF(f1, f2)) = CON(TIMESF, [flatten_funct f1, flatten_funct f2])
-  | flatten_funct (SumF(f1, f2))  = CON(PLUSF, [flatten_funct f1, flatten_funct f2])
+and flatten_funct free Id              = (CON(IDF, []), free)
+  | flatten_funct free (K t)           = 
+      let val (t', free1) = flatten_type free t
+      in (CON(CONSTF, [t']), free1)
+      end
+  | flatten_funct free (ProdF(f1, f2)) = 
+      let val (f1', free1) = flatten_funct free f1 
+          val (f2', free2) = flatten_funct free f2
+      in (CON(TIMESF, [f1', f2']), Int.max(free1, free2))
+      end
+  | flatten_funct free (SumF(f1, f2))  = 
+      let val (f1', free1) = flatten_funct free f1 
+          val (f2', free2) = flatten_funct free f2
+      in (CON(PLUSF, [f1', f2']), Int.max(free1, free2))
+      end
 
-fun apply_functor_flat t Id              = t
-  | apply_functor_flat _ (K t')          = flatten_type t'
-  | apply_functor_flat t (ProdF(f1, f2)) = 
-      CON(TIMES, [apply_functor_flat t f1, apply_functor_flat t f2])
-  | apply_functor_flat t (SumF(f1, f2))  = 
-      CON(PLUS, [apply_functor_flat t f1, apply_functor_flat t f2])
+fun apply_functor_flat free t Id              = (t, free)
+  | apply_functor_flat free _ (K t')          = flatten_type free t'
+  | apply_functor_flat free t (ProdF(f1, f2)) = 
+      let val (t1', free1) = apply_functor_flat free t f1 
+          val (t2', free2) = apply_functor_flat free t f2
+      in (CON(TIMES, [t1', t2']), Int.max(free1, free2))
+      end
+  | apply_functor_flat free t (SumF(f1, f2))  = 
+      let val (t1', free1) = apply_functor_flat free t f1 
+          val (t2', free2) = apply_functor_flat free t f2
+      in (CON(PLUS, [t1', t2']), Int.max(free1, free2))
+      end
 
 exception TypeInflationError of flat_type expression
 
@@ -41,3 +75,14 @@ and inflate_funct (CON(IDF, [])) = Id
   | inflate_funct (CON(TIMESF, [f1, f2])) = ProdF(inflate_funct f1, inflate_funct f2)
   | inflate_funct (CON(PLUSF, [f1, f2])) = SumF(inflate_funct f1, inflate_funct f2)
   | inflate_funct ft = raise TypeInflationError ft
+
+fun flat_to_string UNIT = "Unit"
+  | flat_to_string VOID = "Void"
+  | flat_to_string MU = "Mu"
+  | flat_to_string TIMES = "Times"
+  | flat_to_string PLUS = "Plus"
+  | flat_to_string ARROW = "Arrow"
+  | flat_to_string IDF = "Id"
+  | flat_to_string CONSTF = "K" 
+  | flat_to_string TIMESF = "TimesF"
+  | flat_to_string PLUSF = "PlusF"

@@ -31,15 +31,15 @@ type 'a equation = 'a expression * 'a expression * string (* string is the error
 
 fun subst_eqn x e' (e1, e2, s) = (subst_expr x e' e1, subst_expr x e' e2, s)
 
-fun unify [] = EMPTY
-  | unify ((CON(s, es1), CON(t, es2), errorMessage) :: eqs) =
+fun unify _ [] = EMPTY
+  | unify toString ((CON(s, es1), CON(t, es2), errorMessage) :: eqs) =
       if s = t andalso length es1 = length es2 
-      then unify (map (fn (x, y) => (x, y, errorMessage)) (ListPair.zip (es1, es2)) @ eqs) 
-      else raise UnificationError errorMessage
-  | unify ((CON(s, es), VAR(x), errorMessage) :: eqs) = unify ((VAR x, CON(s, es), errorMessage) :: eqs)
-  | unify ((VAR x, t, errorMessage) :: eqs) =
-      if t = VAR x then unify eqs 
+      then unify toString (map (fn (x, y) => (x, y, errorMessage)) (ListPair.zip (es1, es2)) @ eqs) 
+      else raise UnificationError (errorMessage ^ ": " ^ toString s ^ " =/= " ^ toString t)
+  | unify toString ((CON(s, es), VAR(x), errorMessage) :: eqs) = unify toString ((VAR x, CON(s, es), errorMessage) :: eqs)
+  | unify toString ((VAR x, t, errorMessage) :: eqs) =
+      if t = VAR x then unify toString eqs 
       else if List.exists (fn y => x = y) (vars t) then raise UnificationError ("Occurs check at: " ^ errorMessage)
-      else let val theta = unify (map (subst_eqn x t) eqs)
+      else let val theta = unify toString (map (subst_eqn x t) eqs)
            in EXTEND(x, subst_expr_sub theta t, theta)
            end

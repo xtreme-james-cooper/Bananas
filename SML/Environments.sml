@@ -30,6 +30,11 @@ fun extend_e_static x t (gamma: static_environment) = {
     var_v_type = #var_v_type gamma,
     var_t_type = #var_t_type gamma }
 
+fun extend_v_static x t (gamma: static_environment) = { 
+    var_e_type = #var_e_type gamma,
+    var_v_type = (x, t) :: #var_v_type gamma,
+    var_t_type = #var_t_type gamma }
+
 fun extend_t_static x t (gamma: static_environment) = { 
     var_e_type = #var_e_type gamma,
     var_v_type = #var_v_type gamma,
@@ -52,6 +57,11 @@ val empty_dynamic = {
 fun extend_e_dynamic x e (lam: dynamic_environment) = { 
     var_e_bind = (x, e) :: #var_e_bind lam,
     var_v_bind = #var_v_bind lam,
+    var_t_bind = #var_t_bind lam }
+
+fun extend_v_dynamic x v (lam: dynamic_environment) = { 
+    var_e_bind = #var_e_bind lam,
+    var_v_bind = (x, v) :: #var_v_bind lam,
     var_t_bind = #var_t_bind lam }
 
 fun extend_t_dynamic x t (lam: dynamic_environment) = { 
