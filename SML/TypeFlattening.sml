@@ -3,7 +3,7 @@
    we need a way to compress a type into our restricted VAR/CON language
    these functions do so, and inflate it again at the other end *)
 
-datatype flat_type = UNIT | VOID | TIMES | PLUS | ARROW | MU | IDF | CONSTF | TIMESF | PLUSF
+datatype flat_type = UNIT | VOID | TIMES | PLUS | ARROW | MU of name | IDF | CONSTF | TIMESF | PLUSF
 
 fun flatten_type free Unit           = (CON(UNIT, []), free)
   | flatten_type free Void           = (CON(VOID, []), free)
@@ -25,9 +25,9 @@ fun flatten_type free Unit           = (CON(UNIT, []), free)
           val (t2', free2) = flatten_type free t2
       in (CON(ARROW, [t1', t2']), Int.max(free1, free2))
       end
-  | flatten_type free (Fix F)        = 
+  | flatten_type free (Fix(n, F))        = 
       let val (f', free1) = flatten_funct free F 
-      in (CON(MU, [f']), free1)
+      in (CON(MU n, [f']), free1)
       end
 
 and flatten_funct free Id              = (CON(IDF, []), free)
@@ -64,7 +64,7 @@ exception TypeInflationError of flat_type expression
 fun inflate_type (VAR x) = Poly x (* ununified variables pop out as polymorphic type variables *)
   | inflate_type (CON(UNIT, [])) = Unit
   | inflate_type (CON(VOID, [])) = Void
-  | inflate_type (CON(MU, [F])) = Fix (inflate_funct F) 
+  | inflate_type (CON(MU n, [F])) = Fix (n, inflate_funct F) 
   | inflate_type (CON(TIMES, [t1, t2])) = Prod(inflate_type t1, inflate_type t2)
   | inflate_type (CON(PLUS, [t1, t2])) = Sum(inflate_type t1, inflate_type t2)
   | inflate_type (CON(ARROW, [t1, t2])) = Func(inflate_type t1, inflate_type t2) 
@@ -78,7 +78,7 @@ and inflate_funct (CON(IDF, [])) = Id
 
 fun flat_to_string UNIT = "Unit"
   | flat_to_string VOID = "Void"
-  | flat_to_string MU = "Mu"
+  | flat_to_string (MU n) = "Mu " ^ n
   | flat_to_string TIMES = "Times"
   | flat_to_string PLUS = "Plus"
   | flat_to_string ARROW = "Arrow"

@@ -86,14 +86,14 @@ fun assemble_constraints_expr gamma _ y free (Const v) = assemble_constraints_va
       end
   | assemble_constraints_expr gamma x y free (Inj n) = 
       let val F = var_t_type gamma n
-          val (FF, free') = flatten_type free (apply_functor_type (Fix F) F)
-          val (MF, free'') = flatten_type free' (Fix F)
+          val (FF, free') = flatten_type free (apply_functor_type (Fix(n, F)) F)
+          val (MF, free'') = flatten_type free' (Fix(n, F))
       in ([(x, FF, "Inj in type mismatch"), (y, MF, "Inj out type mismatch")], free'')
       end
   | assemble_constraints_expr gamma x y free (Outj n) = 
       let val F = var_t_type gamma n
-          val (MF, free') = flatten_type free (Fix F)
-          val (FF, free'') = flatten_type free' (apply_functor_type (Fix F) F)
+          val (MF, free') = flatten_type free (Fix(n, F))
+          val (FF, free'') = flatten_type free' (apply_functor_type (Fix(n, F)) F)
       in ([(x, MF, "Outj in type mismatch"), (y, FF, "Outj out type mismatch")], free'')
       end
   | assemble_constraints_expr gamma x y free (Cata(f, n)) =
@@ -101,14 +101,14 @@ fun assemble_constraints_expr gamma _ y free (Const v) = assemble_constraints_va
           val (F', free') = apply_functor_flat free y F
           val (cs, free'') = assemble_constraints_exprs gamma F' y free' f
           val (F'', free''') = flatten_funct free'' F
-      in ((x, CON(MU, [F'']), "Cata type mismatch") :: cs, free''')
+      in ((x, CON(MU n, [F'']), "Cata type mismatch") :: cs, free''')
       end
   | assemble_constraints_expr gamma x y free (Ana(f, n)) =
       let val F = var_t_type gamma n
           val (F', free') = apply_functor_flat free x F 
           val (cs, free'') = assemble_constraints_exprs gamma x F' free' f
           val (F'', free''') = flatten_funct free'' F
-      in ((y, CON(MU, [F'']), "Ana type mismatch") :: cs, free''')
+      in ((y, CON(MU n, [F'']), "Ana type mismatch") :: cs, free''')
       end
   | assemble_constraints_expr gamma x y free (Var z) = 
       let val (t1, t2) = var_e_type gamma z
@@ -148,9 +148,9 @@ and assemble_constraints_val _     x free UnitV = ([(x, CON(UNIT, []), "UnitV ty
       end
   | assemble_constraints_val gamma x free (InjV(n, v)) =
       let val F = var_t_type gamma n
-          val (ff, free') = flatten_type free (apply_functor_type (Fix F) F)
+          val (ff, free') = flatten_type free (apply_functor_type (Fix(n, F)) F)
           val (cs, free'') = assemble_constraints_val gamma ff free' v
-          val (FF, free''') = flatten_type free'' (Fix F)
+          val (FF, free''') = flatten_type free'' (Fix(n, F))
       in ((x, FF, "InjV type mismatch") :: cs, free''')
       end
 
@@ -171,12 +171,12 @@ fun typecheck_val gamma v =
 (* the expected types of a set of constructors 
    Unit -> \<mu> F if no arguments
    arg1 \<otimes> ... \<otimes> argn -> \<mu> F otherwise *)
-fun typecheck_ctor_expr gamma F cts = map (fn (x, ts) => 
-      (x, (if ts = [] then Unit else foldr1 Prod (map (Fix o var_t_type gamma) ts), Fix F))) cts
+fun typecheck_ctor_expr n gamma F cts = map (fn (x, ts) => 
+      (x, (if ts = [] then Unit else foldr1 Prod (map (fn x => Fix(x, var_t_type gamma x)) ts), Fix(n, F)))) cts
 
 (* check if a name is the recursive type name
    if so, the Id functor; otherwise the constant functor of that name *)
-fun typecheck_ctor_arg gamma tn t = if t = tn then Id else K (Fix (var_t_type gamma t))
+fun typecheck_ctor_arg gamma tn t = if t = tn then Id else K (Fix(t, var_t_type gamma t))
 
 (* the functor form of a constructor 
    K Unit if no arguments
@@ -188,14 +188,14 @@ fun typecheck_ctor _     _  (_, []) = K Unit
 fun typecheck_ctors gamma x cts = foldr1 SumF (map (typecheck_ctor gamma x) cts)
 
 (* expected type of a constructor-as-value: args -> \<mu> F *)
-fun typecheck_ctor_val gamma F cts = 
-      map (fn (x, xs) => (x, (map (Fix o var_t_type gamma) xs, Fix F))) cts
+fun typecheck_ctor_val n gamma F cts = 
+      map (fn (x, xs) => (x, (map (fn x => Fix(x, var_t_type gamma x)) xs, Fix(n, F)))) cts
 
 (* typecheck a type declaration *)
 fun typecheck_typedef gamma n cts = 
       let val F = typecheck_ctors gamma n cts
-      in { var_e_type = typecheck_ctor_expr (extend_t_static n F gamma) F cts, 
-           var_v_type = typecheck_ctor_val (extend_t_static n F gamma) F cts,
+      in { var_e_type = typecheck_ctor_expr n (extend_t_static n F gamma) F cts, 
+           var_v_type = typecheck_ctor_val n (extend_t_static n F gamma) F cts,
            var_t_type = [(n, F)] }
       end
 

@@ -10,7 +10,7 @@ datatype typ =
 | Prod of typ * typ (* t1 \<otimes> t2 *)
 | Sum of typ * typ (* t1 \<oplus> t2 *)
 | Func of typ * typ (* t1 \<rightarrow> t2 *)
-| Fix of funct (* \<mu> F *)
+| Fix of name * funct (* \<mu> F *)
 and funct =
   Id
 | K of typ
@@ -73,3 +73,24 @@ datatype decl =
 
 (* top-level program *)
 datatype prog = Prog of decl list * expr list * val_description
+
+(* debugging utilities *)
+
+fun typ_to_string Void = "0"
+  | typ_to_string Unit = "1"
+  | typ_to_string (Poly x) = "?" ^ Int.toString x
+  | typ_to_string (Prod(t1, t2)) = "(" ^ typ_to_string t1 ^ " * " ^ typ_to_string t2 ^ ")"
+  | typ_to_string (Sum(t1, t2)) = "(" ^ typ_to_string t1 ^ " + " ^ typ_to_string t2 ^ ")"
+  | typ_to_string (Func(t1, t2)) = "(" ^ typ_to_string t1 ^ " => " ^ typ_to_string t2 ^ ")"
+  | typ_to_string (Fix (n, _)) = n
+and funct_to_string Id = "Id"
+  | funct_to_string (K t) = "K " ^ typ_to_string t
+  | funct_to_string (ProdF(f1, f2)) = "(" ^ funct_to_string f1 ^ " * " ^ funct_to_string f2 ^ ")"
+  | funct_to_string (SumF(f1, f2)) = "(" ^ funct_to_string f1 ^ " + " ^ funct_to_string f2 ^ ")"
+
+fun val_to_string UnitV = "()"
+  | val_to_string (PairV(v1, v2)) = "(" ^ val_to_string v1 ^ ", " ^ val_to_string v2 ^ ")"
+  | val_to_string (InlV v) = "inl " ^ val_to_string v
+  | val_to_string (InrV v) = "inr " ^ val_to_string v
+  | val_to_string (FunV _) = "fn"
+  | val_to_string (InjV(n, v)) = "[" ^ n ^ " " ^ val_to_string v ^ "]"
