@@ -1,5 +1,5 @@
 
-(*
+(* example program in real syntax:
   type Bool = True | False
 
   type Nat = Zero | Succ Nat
@@ -7,9 +7,7 @@
   expr pred = \<kappa> Zero \<nabla> \<epsilon> . \<prec>\<^sub>N\<^sub>a\<^sub>t
 
   type GTHelp = Success Bool | Recurse GTHelper
-  expr gt_help = IF is_zero . \<pi>\<^sub>1 THEN \<iota>\<^sub>l . \<kappa> False
-                 ELSE IF is_zero . \<pi>\<^sub>2 THEN \<iota>\<^sub>l . \<kappa> True
-                 ELSE \<iota>\<^sub>r . pred \<parallel> pred
+  expr gt_help = (\<iota>\<^sub>l . \<kappa> False) \<lhd> is_zero . \<pi>\<^sub>1 \<rhd> ((\<iota>\<^sub>l . \<kappa> True) \<lhd> is_zero . \<pi>\<^sub>2 \<rhd> (\<iota>\<^sub>r . pred \<parallel> pred))
   expr greater_than = \<lparr> \<Xi> \<rparr>\<^sub>G\<^sub>T\<^sub>H\<^sub>e\<^sub>l\<^sub>p . \<lbrakk> gt_help \<rbrakk>\<^sub>G\<^sub>T\<^sub>H\<^sub>e\<^sub>l\<^sub>p
 
   greater_than (Succ (Succ (Succ Zero)), Succ (Succ Zero))
@@ -25,7 +23,9 @@ val base_environment = [
       ExprDecl("greater_than_helper", if_expr [Proj1, Var "is_zero"] [Const (ValDesc("False", [])), Injl]
                                       (if_expr [Proj2, Var "is_zero"] [Const (ValDesc("True", [])), Injl]
                                       [Pairwise([Var "pred"], [Var "pred"]), Injr])),
-      ExprDecl("greater_than", [Ana([Var "greater_than_helper"], "GTHelper"), Cata([Strip], "GTHelper")])
+      ExprDecl("greater_than", [Ana([Var "greater_than_helper"], "GTHelper"), Cata([Strip], "GTHelper")]),
+      TypeDecl("List", [("Nil", []), ("Cons", ["Nat", "List"])]),
+      TypeDecl("Tree", [("Leaf", []), ("Branch", ["Tree", "Nat", "Tree"])])
 ]
 
 val (static, dynamic) = assemble_context empty_static empty_dynamic base_environment
@@ -36,13 +36,5 @@ val two = ValDesc("Succ", [one])
 val three = ValDesc("Succ", [two])
 val four = ValDesc("Succ", [three])
 
-val example1 = partial_eval_prog (Prog(base_environment, [Var "is_zero"], zero))
-val example2 = partial_eval_prog (Prog(base_environment, [Var "is_zero"], one)) 
-val example3 = partial_eval_prog (Prog(base_environment, [Var "pred"], zero))
-val example4 = partial_eval_prog (Prog(base_environment, [Var "pred"], one))
-val example5 = partial_eval_prog (Prog(base_environment, [Var "pred"], two))
-val example6 = partial_eval_prog (Prog(base_environment, [Var "pred", Var "is_zero"], zero))
-val example7 = partial_eval_prog (Prog(base_environment, [Var "pred", Var "is_zero"], one))
-val example8 = partial_eval_prog (Prog(base_environment, [Var "pred", Var "is_zero"], two))
-val example9 = partial_eval_prog (Prog(base_environment, tuple_pair [Const three] [Const four] @ [Var "greater_than"], zero))
-val example10 = partial_eval_prog (Prog(base_environment, tuple_pair [Const four] [Const three] @ [Var "greater_than"], zero))
+val example1 = eval_prog (Prog(base_environment, tuple_pair [Const three] [Const four] @ [Var "greater_than"], zero))
+val example2 = eval_prog (Prog(base_environment, tuple_pair [Const four] [Const three] @ [Var "greater_than"], zero))

@@ -1,5 +1,11 @@
 
+(* standard unification algorithm 
+   we have a restricted variable/constructor language to unify over, which makes it much simpler
+   we pay for it in the actual typechecker, though *)
+
 type var = int
+
+exception UnificationError of string
 
 datatype 'a expression =
   VAR of var
@@ -21,21 +27,19 @@ fun subst_sub EMPTY                 x = VAR x
 fun subst_expr_sub theta (VAR(x))     = subst_sub theta x
   | subst_expr_sub theta (CON(s, es)) = CON(s, map (subst_expr_sub theta) es)
 
-type 'a equation = 'a expression * 'a expression
+type 'a equation = 'a expression * 'a expression * string (* string is the error message if unification fails *)
 
-fun subst_eqn x e' (e1, e2) = (subst_expr x e' e1, subst_expr x e' e2)
+fun subst_eqn x e' (e1, e2, s) = (subst_expr x e' e1, subst_expr x e' e2, s)
 
-fun unify' [] = SOME EMPTY
-  | unify' ((CON(s, es1), CON(t, es2)) :: eqs) =
+fun unify [] = EMPTY
+  | unify ((CON(s, es1), CON(t, es2), errorMessage) :: eqs) =
       if s = t andalso length es1 = length es2 
-      then unify' (ListPair.zip (es1, es2) @ eqs) 
-      else NONE
-  | unify' ((CON(s, es), VAR(x)) :: eqs) = unify' ((VAR x, CON(s, es)) :: eqs)
-  | unify' ((VAR x, t) :: eqs) =
-      if t = VAR x then unify' eqs 
-      else if List.exists (fn y => x = y) (vars t) then NONE
-      else case unify' (map (subst_eqn x t) eqs) of
-          NONE => NONE
-        | SOME theta => SOME (EXTEND(x, subst_expr_sub theta t, theta))
-
-fun unify e1 e2 = unify' [(e1, e2)]
+      then unify (map (fn (x, y) => (x, y, errorMessage)) (ListPair.zip (es1, es2)) @ eqs) 
+      else raise UnificationError errorMessage
+  | unify ((CON(s, es), VAR(x), errorMessage) :: eqs) = unify ((VAR x, CON(s, es), errorMessage) :: eqs)
+  | unify ((VAR x, t, errorMessage) :: eqs) =
+      if t = VAR x then unify eqs 
+      else if List.exists (fn y => x = y) (vars t) then raise UnificationError ("Occurs check at: " ^ errorMessage)
+      else let val theta = unify (map (subst_eqn x t) eqs)
+           in EXTEND(x, subst_expr_sub theta t, theta)
+           end

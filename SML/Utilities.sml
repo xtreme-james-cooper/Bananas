@@ -1,5 +1,7 @@
 
 
+(* SML probably has these, but they're not in the deep-down basis library, so I reimplemented 'em *)
+
 fun those [] = []
   | those (NONE   :: _ ) = raise Option.Option
   | those (SOME b :: bs) = b :: those bs
@@ -10,9 +12,6 @@ type ('a, 'b) assoc = ('a * 'b) list
 
 fun lookup a []             e = raise e a
   | lookup a ((b, c) :: bs) e = if a = b then c else lookup a bs e
-
-fun zip (b :: bs) (c :: cs) = (b, c) :: zip bs cs
-  | zip _         _         = []
 
 fun mapWithIndex' _ _ []        = []
   | mapWithIndex' n f (b :: bs) = f (n, b) :: mapWithIndex' (n + 1) f bs
