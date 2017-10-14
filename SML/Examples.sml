@@ -64,7 +64,8 @@ val base_environment = [
 val (static, dynamic) = assemble_context empty_static empty_dynamic base_environment
 
 val a = typ_to_string (#1 (var_e_type static "sort")) ^ "--->" ^ typ_to_string (#2 (var_e_type static "sort"))
+val b = expr_to_string (var_e_bind dynamic) (Var "sort")
 
 val example1 = [Const (ValDesc("testlist", [])), Var "sort"]
 
-val b = val_to_string (eval_prog (Prog(base_environment, example1, ValDesc("Zero", []))))
+val c = val_to_string (var_e_bind dynamic) (eval_prog (Prog(base_environment, example1, ValDesc("Zero", []))))

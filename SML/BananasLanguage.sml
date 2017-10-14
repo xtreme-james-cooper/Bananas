@@ -88,9 +88,34 @@ and funct_to_string Id = "Id"
   | funct_to_string (ProdF(f1, f2)) = "(" ^ funct_to_string f1 ^ " * " ^ funct_to_string f2 ^ ")"
   | funct_to_string (SumF(f1, f2)) = "(" ^ funct_to_string f1 ^ " + " ^ funct_to_string f2 ^ ")"
 
-fun val_to_string UnitV = "()"
-  | val_to_string (PairV(v1, v2)) = "(" ^ val_to_string v1 ^ ", " ^ val_to_string v2 ^ ")"
-  | val_to_string (InlV v) = "inl " ^ val_to_string v
-  | val_to_string (InrV v) = "inr " ^ val_to_string v
-  | val_to_string (FunV _) = "fn"
-  | val_to_string (InjV(n, v)) = "[" ^ n ^ " " ^ val_to_string v ^ "]"
+fun val_desc_to_string (ValDesc(n, vs)) = n ^ list_to_string val_desc_to_string vs
+
+fun expr_to_string _   Proj1 = "Pi1"
+  | expr_to_string _   Proj2 = "Pi2"
+  | expr_to_string _   Duplicate = "Theta"
+  | expr_to_string env (Pairwise(e1, e2)) = exprs_to_string env e1 ^ " || " ^ exprs_to_string env e2
+  | expr_to_string _   Injl = "il"
+  | expr_to_string _   Injr = "ir" 
+  | expr_to_string _   Strip = "Xi"
+  | expr_to_string env (Case(e1, e2)) = exprs_to_string env e1 ^ " | " ^ exprs_to_string env e2
+  | expr_to_string _   Distribute = "=>"
+  | expr_to_string _   Apply = "$"
+  | expr_to_string env (Fun f) = "< " ^ exprs_to_string env f ^ " >" 
+  | expr_to_string env (Arrow(g, f)) = exprs_to_string env g ^ "<-" ^ exprs_to_string env f
+  | expr_to_string env (Uncurry f) = "b " ^  exprs_to_string env f
+  | expr_to_string env (Curry f) = "# " ^  exprs_to_string env f
+  | expr_to_string _   (Inj n) = ">" ^ n
+  | expr_to_string _   (Outj n) = "<" ^ n
+  | expr_to_string env (Cata(f, n)) = "(| " ^ exprs_to_string env f ^ " |)" ^ n
+  | expr_to_string env (Ana(f, n)) = "|[ " ^ exprs_to_string env f ^ " ]|" ^ n
+  | expr_to_string env (Var n) = exprs_to_string env (env n)
+  | expr_to_string _   (Const v) = val_desc_to_string v 
+  | expr_to_string env (ConstV v) = "K " ^ val_to_string env v
+and exprs_to_string env xs = list_to_string (expr_to_string env) xs
+
+and val_to_string _   UnitV = "()"
+  | val_to_string env (PairV(v1, v2)) = "(" ^ val_to_string env v1 ^ ", " ^ val_to_string env v2 ^ ")"
+  | val_to_string env (InlV v) = "inl " ^ val_to_string env v
+  | val_to_string env (InrV v) = "inr " ^ val_to_string env v
+  | val_to_string env (FunV f) = "<" ^ exprs_to_string env f ^ ">"
+  | val_to_string env (InjV(n, v)) = "[" ^ n ^ " " ^ val_to_string env v ^ "]"

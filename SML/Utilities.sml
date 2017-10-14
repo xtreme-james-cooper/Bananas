@@ -21,3 +21,9 @@ fun mapWithIndex f bs = mapWithIndex' 0 f bs
 fun foldr1 _ [] = raise List.Empty
   | foldr1 _ [b] = b
   | foldr1 f (b :: bs) = f (b, foldr1 f bs)
+
+fun list_to_string' _        [] = ""
+  | list_to_string' toString (x :: []) = toString x
+  | list_to_string' toString (x :: xs) = toString x ^ ", " ^ list_to_string' toString xs
+
+fun list_to_string toString xs = "[" ^ list_to_string' toString xs ^ "]"
