@@ -6,6 +6,8 @@
   expr is_zero = \<kappa> True \<nabla> \<kappa> False . \<prec>\<^sub>N\<^sub>a\<^sub>t
   expr pred = \<kappa> Zero \<nabla> \<epsilon> . \<prec>\<^sub>N\<^sub>a\<^sub>t
 
+  expr double = \<lparr> (\<succ>\<^sub>N\<^sub>a\<^sub>t . \<iota>\<^sub>l) \<nabla> (\<succ>\<^sub>N\<^sub>a\<^sub>t . \<iota>\<^sub>r . \<succ>\<^sub>N\<^sub>a\<^sub>t . \<iota>\<^sub>r) \<rparr>\<^sub>N\<^sub>a\<^sub>t
+
   type GTHelp = Success Bool | Recurse GTHelper
   expr gt_help = (\<iota>\<^sub>l . \<kappa> False) \<lhd> is_zero . \<pi>\<^sub>1 \<rhd> ((\<iota>\<^sub>l . \<kappa> True) \<lhd> is_zero . \<pi>\<^sub>2 \<rhd> (\<iota>\<^sub>r . pred \<parallel> pred))
   expr greater_than = \<lparr> \<Xi> \<rparr>\<^sub>G\<^sub>T\<^sub>H\<^sub>e\<^sub>l\<^sub>p . \<lbrakk> gt_help \<rbrakk>\<^sub>G\<^sub>T\<^sub>H\<^sub>e\<^sub>l\<^sub>p
@@ -18,6 +20,9 @@
   type List = Nil | Cons Nat List
 
   val testlist = Cons three (Cons four (Cons two (Cons one Nil)))
+
+  expr length = \<lparr> \<kappa> Zero \<nabla> (Succ . \<pi>\<^sub>2) \<rparr>\<^sub>L\<^sub>i\<^sub>s\<^sub>t
+  expr map_double = \<lparr> (\<succ>\<^sub>L\<^sub>i\<^sub>s\<^sub>t . \<iota>\<^sub>l) \<nabla> (double \<parallel> \<epsilon> . \<succ>\<^sub>L\<^sub>i\<^sub>s\<^sub>t . \<iota>\<^sub>r) \<rparr>\<^sub>L\<^sub>i\<^sub>s\<^sub>t
 
   expr insert_helper_cons = (Cons . \<bowtie> . ($ . \<bowtie>) \<parallel> \<epsilon>) \<triangleleft> greater_than . \<pi>\<^sub>1 \<parallel> \<epsilon> \<triangleright> (Cons . \<epsilon> \<parallel> $ . \<supset>)
   expr insert_helper = \<langle> Cons . \<epsilon> \<triangle> \<kappa> Nil \<rangle> \<nabla> (\<sharp> insert_helper_cons)
@@ -32,6 +37,8 @@ val base_environment = [
       TypeDecl("Nat", [("Zero", []), ("Succ", ["Nat"])]),
       ExprDecl("is_zero", Outj "Nat" :: case_strip [Const (ValDesc("True", []))] [Const (ValDesc("False", []))]),
       ExprDecl("pred", Outj "Nat" :: case_strip [Const (ValDesc("Zero", []))] []),
+
+      ExprDecl("double", [Cata(case_strip [Injl, Inj "Nat"] [Injr, Inj "Nat", Injr, Inj "Nat"], "Nat")]),
 
       TypeDecl("GTHelper", [("Success", ["Bool"]), ("Recurse", ["GTHelper"])]),
       ExprDecl("greater_than_helper", if_expr [Proj1, Var "is_zero"] [Const (ValDesc("False", [])), Injl]
@@ -51,6 +58,9 @@ val base_environment = [
                           ValDesc("Cons", [ValDesc("two", []), 
                           ValDesc("Cons", [ValDesc("one", []), ValDesc("Nil", [])])])])])),
 
+      ExprDecl("length", [Cata(case_strip [Const (ValDesc("Zero", []))] [Proj2, Var "Succ"], "List")]),
+      ExprDecl("map_double", [Cata(case_strip [Injl, Inj "List"] [Pairwise([Var "double"], []), Injr, Inj "List"], "List")]),
+
       ExprDecl("insert_helper_cons", if_expr [Pairwise([Proj1], []), Var "greater_than"] 
                                              (Pairwise(swap @ [Apply], []) :: swap @ [Var "Cons"])
                                              (assoc_left @ [Pairwise([], [Apply]), Var "Cons"])),
@@ -65,7 +75,7 @@ val (static, dynamic) = assemble_context empty_static empty_dynamic base_environ
 
 val a = typ_to_string (#1 (var_e_type static "sort")) ^ "--->" ^ typ_to_string (#2 (var_e_type static "sort"))
 val b = expr_to_string (var_e_bind dynamic) (Var "sort")
+val c = exprs_to_string (var_e_bind dynamic) (optimize dynamic [Var "sort"])
 
-val example1 = [Const (ValDesc("testlist", [])), Var "sort"]
-
-val c = val_to_string (var_e_bind dynamic) (eval_prog (Prog(base_environment, example1, ValDesc("Zero", []))))
+val d = val_to_string (var_e_bind dynamic) (eval_prog (Prog(base_environment, [Var "sort"], ValDesc("testlist", []))))
+val e = val_to_string (var_e_bind dynamic) (eval_prog (Prog(base_environment, [Var "map_double", Var "length"], ValDesc("testlist", []))))
