@@ -22,7 +22,7 @@
   val testlist = Cons three (Cons four (Cons two (Cons one Nil)))
 
   expr length = \<lparr> \<kappa> Zero \<nabla> (Succ . \<pi>\<^sub>2) \<rparr>\<^sub>L\<^sub>i\<^sub>s\<^sub>t
-  expr map_double = \<lparr> (\<succ>\<^sub>L\<^sub>i\<^sub>s\<^sub>t . \<iota>\<^sub>l) \<nabla> (double \<parallel> \<epsilon> . \<succ>\<^sub>L\<^sub>i\<^sub>s\<^sub>t . \<iota>\<^sub>r) \<rparr>\<^sub>L\<^sub>i\<^sub>s\<^sub>t
+  expr map_double = \<lparr> (\<succ>\<^sub>L\<^sub>i\<^sub>s\<^sub>t . \<iota>\<^sub>l) \<nabla> (\<succ>\<^sub>L\<^sub>i\<^sub>s\<^sub>t . \<iota>\<^sub>r . double \<parallel> \<epsilon>) \<rparr>\<^sub>L\<^sub>i\<^sub>s\<^sub>t
 
   expr insert_helper_cons = (Cons . \<bowtie> . ($ . \<bowtie>) \<parallel> \<epsilon>) \<triangleleft> greater_than . \<pi>\<^sub>1 \<parallel> \<epsilon> \<triangleright> (Cons . \<epsilon> \<parallel> $ . \<supset>)
   expr insert_helper = \<langle> Cons . \<epsilon> \<triangle> \<kappa> Nil \<rangle> \<nabla> (\<sharp> insert_helper_cons)
